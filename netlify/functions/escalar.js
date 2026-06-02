@@ -3,13 +3,10 @@ const handler = async (event, context) => {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
   };
-
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY nao configurada" }) };
-
   try {
     const body = JSON.parse(event.body);
     const atletas = body.atletas || [];
@@ -18,44 +15,33 @@ const handler = async (event, context) => {
     const rodada = body.rodada || "atual";
     const partidas = body.partidas || [];
     const clubes = body.clubes || {};
-
     if (!atletas.length) return { statusCode: 400, headers, body: JSON.stringify({ error: "Nenhum atleta fornecido" }) };
 
-    
     const por_posicao = {};
     atletas.forEach(function(a) {
       if (!por_posicao[a.posicao]) por_posicao[a.posicao] = [];
       por_posicao[a.posicao].push(a);
     });
-
     const top_atletas = [];
     ["GOL","LAT","ZAG","MEI","ATA"].forEach(function(pos) {
-      const lista = (por_posicao[pos] || [])
-        .sort(function(a,b){ return (b.score_final||0)-(a.score_final||0); })
-        .slice(0, 15);
+      const lista = (por_posicao[pos] || []).sort(function(a,b){ return (b.score_final||0)-(a.score_final||0); }).slice(0, 15);
       lista.forEach(function(a){ top_atletas.push(a); });
     });
 
-    
-    const totalClubes = top_atletas.length > 0 ? (top_atletas[0].total_clubes || 20) : 20;
-    const clubesRanking = {};
+    const totalClubes = top_atletas.length > 0 && top_atletas[0].total_clubes ? top_atletas[0].total_clubes : 20;
+
+    // Montar posicao na tabela de cada clube (1=lider, N=lanterna)
+    const posTabela = {};
     Object.keys(clubes).forEach(function(id) {
-      if (clubes[id].ranking) {
-        clubesRanking[clubes[id].abrev] = {
-          ranking: clubes[id].ranking,
-          total: totalClubes,
-          posicao_tabela: totalClubes - clubes[id].ranking + 1, 
-        };
+      if (clubes[id] && clubes[id].ranking && clubes[id].abrev) {
+        posTabela[clubes[id].abrev] = totalClubes - clubes[id].ranking + 1;
       }
     });
 
-    
     const partidasStr = partidas.map(function(p) {
-      const mRank = clubesRanking[p.mandante_abrev];
-      const vRank = clubesRanking[p.visitante_abrev];
-      const mPos = mRank ? mRank.posicao_tabela : "?";
-      const vPos = vRank ? vRank.posicao_tabela : "?";
-      return p.mandante_abrev + "("+mPos+") x " + p.visitante_abrev + "("+vPos+")";
+      const mp = posTabela[p.mandante_abrev] ? p.mandante_abrev + "(" + posTabela[p.mandante_abrev] + ")" : p.mandante_abrev;
+      const vp = posTabela[p.visitante_abrev] ? p.visitante_abrev + "(" + posTabela[p.visitante_abrev] + ")" : p.visitante_abrev;
+      return mp + " x " + vp;
     }).join(", ");
 
     const vagas = {
@@ -66,56 +52,35 @@ const handler = async (event, context) => {
     };
 
     const atletasPrompt = top_atletas.map(function(a) {
-      const posClube = a.total_clubes - a.ranking_clube + 1; 
-      const posAdv = a.total_clubes - a.forca_adversario + 1;
+      const posC = a.total_clubes - a.ranking_clube + 1;
+      const posA = a.total_clubes - a.forca_adversario + 1;
       return {
-        id: a.id,
-        nome: a.nome,
-        pos: a.posicao,
-        clube: a.clube_abrev,
-        pos_tabela_clube: posClube + "",  
-        preco: a.preco,
-        media: a.media,
-        variacao: a.variacao,
-        jogos: a.jogos,
-        mando: a.mando,
-        adversario: a.adversario,
-        pos_tabela_adv: posAdv + "",      
-        dificuldade: a.dificuldade + "/5",
-        score_final: a.score_final,
+        id: a.id, nome: a.nome, pos: a.posicao, clube: a.clube_abrev,
+        pos_tabela_clube: posC, pos_tabela_adv: posA,
+        preco: a.preco, media: a.media, variacao: a.variacao, jogos: a.jogos,
+        mando: a.mando, adversario: a.adversario,
+        dificuldade: a.dificuldade + "/5", score: a.score_final,
       };
     });
 
-    const prompt =
-      "Voce e especialista em Cartola FC. Monte o melhor time para a Rodada " + rodada + ".\n\n" +
-      "Orcamento: C$ " + orcamento + " | Esquema: " + esquema + " | Vagas: " + (vagas[esquema]||vagas["4-3-3"]) + "\n" +
+    const prompt = "Voce e especialista em Cartola FC. Monte o melhor time para a Rodada " + rodada + ".\n\n" +
+      "Orcamento: C$ " + orcamento + " | Esquema: " + esquema + " | Vagas: " + (vagas[esquema] || vagas["4-3-3"]) + "\n" +
       "Monte 11 titulares + 1 reserva. Soma dos precos <= C$ " + orcamento + "\n\n" +
-      "JOGOS DA RODADA " + rodada + " (numero entre parenteses = posicao estimada na tabela, 1=lider, maior=lanterna):\n" +
+      "JOGOS DA RODADA (numero entre parenteses = posicao na tabela, 1=lider, maior=lanterna):\n" +
       (partidasStr || "nao disponivel") + "\n\n" +
-      "CRITERIOS EM ORDEM DE PRIORIDADE:\n" +
-      "1. score_final = melhor indicador geral (ja pondera todos os fatores)\n" +
-      "2. FORCA DO CLUBE vs ADVERSARIO: pos_tabela_clube vs pos_tabela_adv eh FUNDAMENTAL\n" +
-      "   - Clube lanterna (pos alta) contra lider (pos 1) = confronto PESSIMO, evitar\n" +
-      "   - Mesmo jogando em casa, clube fraco contra equipe forte raramente pontua bem\n" +
-      "   - Prefira atletas de clubes de medio a alto nivel da tabela\n" +
-      "3. Mando CASA da vantagem APENAS se os clubes sao equilibrados ou o time da casa e superior\n" +
-      "4. Dificuldade 1-2 = confronto favoravel. Dificuldade 4-5 = evitar mesmo se media alta\n" +
-      "5. Variacao positiva = atleta em alta de forma\n" +
-      "6. Capitao = maior expectativa real considerando FORCA DO CLUBE + confronto + forma\n\n" +
-      "ATENCAO ESPECIAL: NAO escale jogadores de times lanternas contra times fortes mesmo que " +
-      "o jogo seja em casa. A posicao na tabela reflete a qualidade real do elenco.\n\n" +
-      "Atletas disponiveis (ordenados por score_final):\n" +
-      JSON.stringify(atletasPrompt) + "\n\n" +
-      "RESPONDA APENAS COM JSON PURO SEM MARKDOWN:\n" +
-      "{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"\",\"clube\":\"\",\"preco\":0,\"media\":0," +
-      "\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":\"\",\"titular\":true,\"capitao\":false," +
-      "\"vice\":false,\"justificativa\":\"explique considerando forca do clube e do adversario\"}]," +
-      "\"capitao\":{\"id\":0,\"nome\":\"\"},\"vice_capitao\":{\"id\":0,\"nome\":\"\"}," +
-      "\"custo_total\":0,\"pontuacao_esperada\":0," +
-      "\"analise\":\"analise considerando posicao dos clubes na tabela e qualidade dos confrontos\"," +
-      "\"alertas\":[]}";
+      "REGRAS OBRIGATORIAS:\n" +
+      "1. score eh o melhor indicador geral, use como base\n" +
+      "2. pos_tabela_clube indica forca do clube. pos_tabela_adv indica forca do adversario\n" +
+      "3. NUNCA escale jogador de time lanterna (pos_tabela_clube alto) contra time forte (pos_tabela_adv baixo)\n" +
+      "4. Mando casa so ajuda se os times sao equilibrados ou o time da casa e superior\n" +
+      "5. Exemplo ruim: clube pos 18 vs adversario pos 2 mesmo em casa = evitar\n" +
+      "6. Exemplo bom: clube pos 3 vs adversario pos 15 = otimo confronto\n" +
+      "7. Capitao deve ter media alta E confronto favoravel (pos_tabela_adv alta = adversario fraco)\n\n" +
+      "Atletas:\n" + JSON.stringify(atletasPrompt) + "\n\n" +
+      "RESPONDA SO COM JSON PURO SEM MARKDOWN:\n" +
+      "{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"\",\"clube\":\"\",\"preco\":0,\"media\":0,\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":\"\",\"titular\":true,\"capitao\":false,\"vice\":false,\"justificativa\":\"\"}],\"capitao\":{\"id\":0,\"nome\":\"\"},\"vice_capitao\":{\"id\":0,\"nome\":\"\"},\"custo_total\":0,\"pontuacao_esperada\":0,\"analise\":\"\",\"alertas\":[]}";
 
-    const response = await fetch("https:
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -130,17 +95,16 @@ const handler = async (event, context) => {
     });
 
     if (!response.ok) throw new Error("Claude API error: " + response.status);
-
     const data = await response.json();
     const text = (data.content && data.content[0]) ? data.content[0].text : "";
-    const clean = text.replace(/```json/g,"").replace(/```/g,"").trim();
+    const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let escalacao;
     try { escalacao = JSON.parse(clean); }
     catch(e) {
       const match = clean.match(/\{[\s\S]*\}/);
       if (match) { try { escalacao = JSON.parse(match[0]); } catch(e2) { throw new Error("JSON invalido: " + e2.message); } }
-      else throw new Error("Sem JSON na resposta: " + clean.substring(0,200));
+      else throw new Error("Sem JSON: " + clean.substring(0, 200));
     }
 
     if (escalacao.time) {
@@ -150,23 +114,20 @@ const handler = async (event, context) => {
           foto: orig ? orig.foto : null,
           escudo: orig ? orig.escudo : null,
           adversario_escudo: orig ? orig.adversario_escudo : null,
-          mando: orig ? orig.mando : (t.mando || "-"),
-          adversario: orig ? orig.adversario : (t.adversario || "-"),
+          mando: orig ? orig.mando : (t.mando || "?"),
+          adversario: orig ? orig.adversario : (t.adversario || "?"),
           dificuldade: orig ? orig.dificuldade : null,
           variacao: orig ? orig.variacao : 0,
           jogos: orig ? orig.jogos : 0,
           ranking_clube: orig ? orig.ranking_clube : null,
-          forca_adversario: orig ? orig.forca_adversario : null,
           total_clubes: orig ? orig.total_clubes : 20,
         });
       });
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true, escalacao: escalacao }) };
-
   } catch(err) {
     return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
   }
 };
-
 exports.handler = handler;
