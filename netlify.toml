@@ -2,10 +2,12 @@
   publish = "."
   functions = "netlify/funções"
 
-[functions]
-  node_bundler = "esbuild"
+[[redirects]]
+  from = "/api/atletas"
+  to = "/.netlify/functions/atletas"
+  status = 200
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/escalar"
+  to = "/.netlify/functions/escalar"
   status = 200
