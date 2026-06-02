@@ -21,7 +21,7 @@ const handler = async (event, context) => {
 
     if (!atletas.length) return { statusCode: 400, headers, body: JSON.stringify({ error: "Nenhum atleta fornecido" }) };
 
-    // Separar top por posicao ordenado por score_final
+    
     const por_posicao = {};
     atletas.forEach(function(a) {
       if (!por_posicao[a.posicao]) por_posicao[a.posicao] = [];
@@ -36,7 +36,7 @@ const handler = async (event, context) => {
       lista.forEach(function(a){ top_atletas.push(a); });
     });
 
-    // Ranking dos clubes para o prompt
+    
     const totalClubes = top_atletas.length > 0 ? (top_atletas[0].total_clubes || 20) : 20;
     const clubesRanking = {};
     Object.keys(clubes).forEach(function(id) {
@@ -44,18 +44,18 @@ const handler = async (event, context) => {
         clubesRanking[clubes[id].abrev] = {
           ranking: clubes[id].ranking,
           total: totalClubes,
-          posicao_tabela: totalClubes - clubes[id].ranking + 1, // 1=líder, N=lanterna
+          posicao_tabela: totalClubes - clubes[id].ranking + 1, 
         };
       }
     });
 
-    // Resumo das partidas com contexto de força
+    
     const partidasStr = partidas.map(function(p) {
       const mRank = clubesRanking[p.mandante_abrev];
       const vRank = clubesRanking[p.visitante_abrev];
       const mPos = mRank ? mRank.posicao_tabela : "?";
       const vPos = vRank ? vRank.posicao_tabela : "?";
-      return p.mandante_abrev + "("+mPos+"°) x " + p.visitante_abrev + "("+vPos+"°)";
+      return p.mandante_abrev + "("+mPos+") x " + p.visitante_abrev + "("+vPos+")";
     }).join(", ");
 
     const vagas = {
@@ -66,21 +66,21 @@ const handler = async (event, context) => {
     };
 
     const atletasPrompt = top_atletas.map(function(a) {
-      const posClube = a.total_clubes - a.ranking_clube + 1; // 1=líder, N=lanterna
+      const posClube = a.total_clubes - a.ranking_clube + 1; 
       const posAdv = a.total_clubes - a.forca_adversario + 1;
       return {
         id: a.id,
         nome: a.nome,
         pos: a.posicao,
         clube: a.clube_abrev,
-        pos_tabela_clube: posClube + "°",  // posição do clube na tabela (estimada)
+        pos_tabela_clube: posClube + "",  
         preco: a.preco,
         media: a.media,
         variacao: a.variacao,
         jogos: a.jogos,
         mando: a.mando,
         adversario: a.adversario,
-        pos_tabela_adv: posAdv + "°",      // posição do adversário na tabela
+        pos_tabela_adv: posAdv + "",      
         dificuldade: a.dificuldade + "/5",
         score_final: a.score_final,
       };
@@ -115,7 +115,7 @@ const handler = async (event, context) => {
       "\"analise\":\"analise considerando posicao dos clubes na tabela e qualidade dos confrontos\"," +
       "\"alertas\":[]}";
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -150,8 +150,8 @@ const handler = async (event, context) => {
           foto: orig ? orig.foto : null,
           escudo: orig ? orig.escudo : null,
           adversario_escudo: orig ? orig.adversario_escudo : null,
-          mando: orig ? orig.mando : (t.mando || "—"),
-          adversario: orig ? orig.adversario : (t.adversario || "—"),
+          mando: orig ? orig.mando : (t.mando || "-"),
+          adversario: orig ? orig.adversario : (t.adversario || "-"),
           dificuldade: orig ? orig.dificuldade : null,
           variacao: orig ? orig.variacao : 0,
           jogos: orig ? orig.jogos : 0,
