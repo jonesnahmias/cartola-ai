@@ -383,8 +383,10 @@ function ini(nome){return (nome||'??').split(' ').map(function(p){return p[0];})
 
 function renderCampo(esc,esq){
   var c=document.getElementById('campoPosicoes');
-  var tit=(esc.time||[]).filter(function(a){return a.titular!==false;});
-  var res=(esc.time||[]).find(function(a){return a.titular===false;});
+  var todos=esc.time||[];
+  var tec=todos.find(function(a){return a.posicao==='TEC';});
+  var res=todos.find(function(a){return a.titular===false && a.posicao!=='TEC';});
+  var tit=todos.filter(function(a){return a.titular!==false && a.posicao!=='TEC';});
   var atas=tit.filter(function(a){return a.posicao==='ATA';});
   var meis=tit.filter(function(a){return a.posicao==='MEI';});
   var defs=tit.filter(function(a){return ['LAT','ZAG'].includes(a.posicao);});
@@ -414,15 +416,32 @@ function renderCampo(esc,esq){
     });
     html+='</div>';
   });
-  if(res){
-    html+='<div class="reserva-sec"><div class="reserva-lbl">Reserva</div>';
-    html+='<div style="display:flex;justify-content:center"><div class="atleta-campo">';
-    html+='<div class="av" style="border-style:dashed;opacity:0.7">';
-    if(res.foto)html+='<img src="'+res.foto+'" onerror="this.style.display=\'none\'">';
-    html+='<div class="av-ini">'+ini(res.nome)+'</div></div>';
-    html+='<div class="an">'+(res.nome||'').split(' ')[0]+'</div>';
-    html+='<div class="ai"><span class="bm">'+parseFloat(res.media||0).toFixed(1)+'</span></div>';
-    html+='</div></div></div>';
+  // Tecnico e Reserva na parte inferior
+  if(tec||res){
+    html+='<div class="reserva-sec"><div style="display:flex;justify-content:center;gap:20px">';
+    if(tec){
+      html+='<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
+      html+='<div class="reserva-lbl">Tecnico</div>';
+      html+='<div class="atleta-campo">';
+      html+='<div class="av" style="border-color:var(--gold);border-style:solid;">';
+      if(tec.foto)html+='<img src="'+tec.foto+'" onerror="this.style.display=\'none\'">';
+      html+='<div class="av-ini">'+ini(tec.nome)+'</div></div>';
+      html+='<div class="an">'+(tec.nome||'').split(' ')[0]+'</div>';
+      html+='<div class="ai"><span class="bm">'+parseFloat(tec.media||0).toFixed(1)+'</span></div>';
+      html+='</div></div>';
+    }
+    if(res){
+      html+='<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
+      html+='<div class="reserva-lbl">Reserva</div>';
+      html+='<div class="atleta-campo">';
+      html+='<div class="av" style="border-style:dashed;opacity:0.7">';
+      if(res.foto)html+='<img src="'+res.foto+'" onerror="this.style.display=\'none\'">';
+      html+='<div class="av-ini">'+ini(res.nome)+'</div></div>';
+      html+='<div class="an">'+(res.nome||'').split(' ')[0]+'</div>';
+      html+='<div class="ai"><span class="bm">'+parseFloat(res.media||0).toFixed(1)+'</span></div>';
+      html+='</div></div>';
+    }
+    html+='</div></div>';
   }
   c.innerHTML=html;
 }
