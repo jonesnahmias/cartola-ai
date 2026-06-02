@@ -51,9 +51,10 @@
     .tec-col{width:68px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:8px 4px;flex-shrink:0;border-right:1px dashed rgba(255,255,255,0.1);}
     .tec-lbl{font-size:8px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;text-align:center;}
     /* Jogadores campo */
-    .cfield{flex:1;display:flex;flex-direction:column;padding:10px 6px;gap:0;}
-    .cl{display:flex;justify-content:center;gap:8px;flex:1;align-items:center;}
-    .cl.gol{flex:0 0 auto;padding:8px 0;}
+    .cfield{flex:1;display:flex;flex-direction:column;padding:8px 6px;justify-content:space-between;}
+    .cl{display:flex;justify-content:center;gap:8px;align-items:center;padding:4px 0;}
+    .cl.ata{margin-top:0;}
+    .cl.gol{margin-bottom:0;}
     /* Card atleta */
     .ac{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:transform 0.2s;width:68px;}
     .ac:hover{transform:translateY(-3px);}
@@ -346,10 +347,14 @@ function renderCampo(esc){
   }
   html+='</div>';
   html+='<div class="cfield">';
-  if(atas.length){html+='<div class="cl">';atas.forEach(function(a){html+=card(a);});html+='</div>';}
-  if(meis.length){html+='<div class="cl">';meis.forEach(function(a){html+=card(a);});html+='</div>';}
-  if(defs.length){html+='<div class="cl">';defs.forEach(function(a){html+=card(a);});html+='</div>';}
+  if(atas.length){html+='<div class="cl ata">';atas.forEach(function(a){html+=card(a);});html+='</div>';}
+  else{html+='<div class="cl ata"></div>';}
+  if(meis.length){html+='<div class="cl mei">';meis.forEach(function(a){html+=card(a);});html+='</div>';}
+  else{html+='<div class="cl mei"></div>';}
+  if(defs.length){html+='<div class="cl def">';defs.forEach(function(a){html+=card(a);});html+='</div>';}
+  else{html+='<div class="cl def"></div>';}
   if(gols.length){html+='<div class="cl gol">';gols.forEach(function(a){html+=card(a);});html+='</div>';}
+  else{html+='<div class="cl gol"></div>';}
   html+='</div>';
   c.innerHTML=html;
 }
