@@ -2,6 +2,15 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."escalar"]
+  timeout = 30
+
+[functions."atletas"]
+  timeout = 20
+
 [[redirects]]
   from = "/api/atletas"
   to = "/.netlify/functions/atletas"
