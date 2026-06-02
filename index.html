@@ -385,64 +385,79 @@ function renderCampo(esc,esq){
   var c=document.getElementById('campoPosicoes');
   var todos=esc.time||[];
   var tec=todos.find(function(a){return a.posicao==='TEC';});
-  var res=todos.find(function(a){return a.titular===false && a.posicao!=='TEC';});
-  var tit=todos.filter(function(a){return a.titular!==false && a.posicao!=='TEC';});
-  var atas=tit.filter(function(a){return a.posicao==='ATA';});
-  var meis=tit.filter(function(a){return a.posicao==='MEI';});
-  var defs=tit.filter(function(a){return ['LAT','ZAG'].includes(a.posicao);});
-  var gols=tit.filter(function(a){return a.posicao==='GOL';});
-  var html='';
-  [atas,meis,defs,gols].forEach(function(g){
-    if(!g.length)return;
-    html+='<div class="campo-linha">';
-    g.forEach(function(a){
-      var isCap=esc.capitao&&esc.capitao.id===a.id;
-      var isVic=esc.vice_capitao&&esc.vice_capitao.id===a.id;
-      var dif=a.dificuldade||3;
-      var mc=a.mando==='casa'?'c':'f';
-      var ml=a.mando==='casa'?'🏠':'✈️';
-      html+='<div class="atleta-campo" title="'+a.nome+' | Média:'+a.media+' | '+(a.mando==='casa'?'Casa':'Fora')+' vs '+(a.adversario||'?')+' | Dif:'+dif+'/5">';
-      html+='<div class="av'+(isCap?' cap':isVic?' vic':'')+'">';
-      if(a.foto)html+='<img src="'+a.foto+'" onerror="this.style.display=\'none\'">';
-      html+='<div class="av-ini">'+ini(a.nome)+'</div>';
-      if(isCap)html+='<div class="cb">C</div>';
-      else if(isVic)html+='<div class="cb" style="background:var(--silver)">V</div>';
-      html+='</div>';
-      html+='<div class="an">'+(a.nome||'').split(' ')[0]+'</div>';
-      html+='<div class="ai"><span class="bm">'+parseFloat(a.media||0).toFixed(1)+'</span>';
-      html+='<span class="bmd '+mc+'">'+ml+'</span>';
-      html+='<span class="bd'+dif+'">'+dif+'★</span></div>';
-      html+='</div>';
-    });
+  var jogadores=todos.filter(function(a){return a.posicao!=='TEC';});
+  var atas=jogadores.filter(function(a){return a.posicao==='ATA';});
+  var meis=jogadores.filter(function(a){return a.posicao==='MEI';});
+  var defs=jogadores.filter(function(a){return ['LAT','ZAG'].includes(a.posicao);});
+  var gols=jogadores.filter(function(a){return a.posicao==='GOL';});
+
+  var cardAtleta=function(a,isCap,isVic){
+    var dif=a.dificuldade||3;
+    var mc=a.mando==='casa'?'c':'f';
+    var ml=a.mando==='casa'?'🏠':'✈️';
+    var h='<div class="atleta-campo" title="'+a.nome+' | Media:'+a.media+' | '+(a.mando==='casa'?'Casa':'Fora')+' vs '+(a.adversario||'?')+'">';
+    h+='<div class="av'+(isCap?' cap':isVic?' vic':'')+'">';
+    if(a.foto)h+='<img src="'+a.foto+'" onerror="this.style.display='none'">';
+    h+='<div class="av-ini">'+ini(a.nome)+'</div>';
+    if(isCap)h+='<div class="cb">C</div>';
+    else if(isVic)h+='<div class="cb" style="background:var(--silver)">V</div>';
+    h+='</div>';
+    h+='<div class="an">'+(a.nome||'').split(' ')[0]+'</div>';
+    h+='<div class="ai"><span class="bm">'+parseFloat(a.media||0).toFixed(1)+'</span>';
+    h+='<span class="bmd '+mc+'">'+ml+'</span>';
+    h+='<span class="bd'+dif+'">'+dif+'</span></div>';
+    h+='</div>';
+    return h;
+  };
+
+  var html='<div style="display:flex;height:100%;gap:0">';
+
+  // Lateral esquerda: tecnico
+  html+='<div style="width:64px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:8px 4px;flex-shrink:0">';
+  if(tec){
+    var isTecCap=esc.capitao&&esc.capitao.id===tec.id;
+    html+='<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px">Técnico</div>';
+    html+='<div class="atleta-campo" title="'+tec.nome+'">';
+    html+='<div class="av" style="border-color:var(--gold);width:44px;height:44px">';
+    if(tec.foto)html+='<img src="'+tec.foto+'" onerror="this.style.display='none'">';
+    html+='<div class="av-ini" style="font-size:14px">'+ini(tec.nome)+'</div>';
     html+='</div>';
-  });
-  // Tecnico e Reserva na parte inferior
-  if(tec||res){
-    html+='<div class="reserva-sec"><div style="display:flex;justify-content:center;gap:20px">';
-    if(tec){
-      html+='<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
-      html+='<div class="reserva-lbl">Tecnico</div>';
-      html+='<div class="atleta-campo">';
-      html+='<div class="av" style="border-color:var(--gold);border-style:solid;">';
-      if(tec.foto)html+='<img src="'+tec.foto+'" onerror="this.style.display=\'none\'">';
-      html+='<div class="av-ini">'+ini(tec.nome)+'</div></div>';
-      html+='<div class="an">'+(tec.nome||'').split(' ')[0]+'</div>';
-      html+='<div class="ai"><span class="bm">'+parseFloat(tec.media||0).toFixed(1)+'</span></div>';
-      html+='</div></div>';
-    }
-    if(res){
-      html+='<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
-      html+='<div class="reserva-lbl">Reserva</div>';
-      html+='<div class="atleta-campo">';
-      html+='<div class="av" style="border-style:dashed;opacity:0.7">';
-      if(res.foto)html+='<img src="'+res.foto+'" onerror="this.style.display=\'none\'">';
-      html+='<div class="av-ini">'+ini(res.nome)+'</div></div>';
-      html+='<div class="an">'+(res.nome||'').split(' ')[0]+'</div>';
-      html+='<div class="ai"><span class="bm">'+parseFloat(res.media||0).toFixed(1)+'</span></div>';
-      html+='</div></div>';
-    }
-    html+='</div></div>';
+    html+='<div class="an">'+(tec.nome||'').split(' ')[0]+'</div>';
+    html+='<div class="ai"><span class="bm">'+parseFloat(tec.media||0).toFixed(1)+'</span></div>';
+    html+='</div>';
   }
+  html+='</div>';
+
+  // Campo principal
+  html+='<div style="flex:1;display:flex;flex-direction:column;gap:4px;padding:12px 8px">';
+
+  // ATA (ataque fica no topo - lado do ataque)
+  if(atas.length){
+    html+='<div class="campo-linha">';
+    atas.forEach(function(a){html+=cardAtleta(a,esc.capitao&&esc.capitao.id===a.id,esc.vice_capitao&&esc.vice_capitao.id===a.id);});
+    html+='</div>';
+  }
+  // MEI
+  if(meis.length){
+    html+='<div class="campo-linha">';
+    meis.forEach(function(a){html+=cardAtleta(a,esc.capitao&&esc.capitao.id===a.id,esc.vice_capitao&&esc.vice_capitao.id===a.id);});
+    html+='</div>';
+  }
+  // DEF
+  if(defs.length){
+    html+='<div class="campo-linha">';
+    defs.forEach(function(a){html+=cardAtleta(a,esc.capitao&&esc.capitao.id===a.id,esc.vice_capitao&&esc.vice_capitao.id===a.id);});
+    html+='</div>';
+  }
+  // GOL (goleiro fica embaixo, na area do gol)
+  if(gols.length){
+    html+='<div class="campo-linha" style="margin-top:auto">';
+    gols.forEach(function(a){html+=cardAtleta(a,esc.capitao&&esc.capitao.id===a.id,esc.vice_capitao&&esc.vice_capitao.id===a.id);});
+    html+='</div>';
+  }
+
+  html+='</div>';
+  html+='</div>';
   c.innerHTML=html;
 }
 
