@@ -24,13 +24,12 @@ const handler = async (event, context) => {
     });
     const top_atletas = [];
     ["GOL","LAT","ZAG","MEI","ATA"].forEach(function(pos) {
-      const lista = (por_posicao[pos] || []).sort(function(a,b){ return (b.score_final||0)-(a.score_final||0); }).slice(0, 15);
+      const lista = (por_posicao[pos] || []).sort(function(a,b){ return (b.score_final||0)-(a.score_final||0); }).slice(0, 12);
       lista.forEach(function(a){ top_atletas.push(a); });
     });
 
     const totalClubes = top_atletas.length > 0 && top_atletas[0].total_clubes ? top_atletas[0].total_clubes : 20;
 
-    // Montar posicao na tabela de cada clube (1=lider, N=lanterna)
     const posTabela = {};
     Object.keys(clubes).forEach(function(id) {
       if (clubes[id] && clubes[id].ranking && clubes[id].abrev) {
@@ -44,41 +43,54 @@ const handler = async (event, context) => {
       return mp + " x " + vp;
     }).join(", ");
 
-    const vagas = {
-      "4-3-3": "1 GOL, 2 LAT, 2 ZAG, 3 MEI, 3 ATA",
-      "4-4-2": "1 GOL, 2 LAT, 2 ZAG, 4 MEI, 2 ATA",
-      "3-5-2": "1 GOL, 1 LAT, 3 ZAG, 5 MEI, 2 ATA",
-      "5-3-2": "1 GOL, 3 LAT, 3 ZAG, 3 MEI, 2 ATA",
+    // Vagas exatas por esquema
+    const vagasMap = {
+      "4-3-3": { "GOL": 1, "LAT": 2, "ZAG": 2, "MEI": 3, "ATA": 3 },
+      "4-4-2": { "GOL": 1, "LAT": 2, "ZAG": 2, "MEI": 4, "ATA": 2 },
+      "3-5-2": { "GOL": 1, "LAT": 1, "ZAG": 3, "MEI": 5, "ATA": 2 },
+      "5-3-2": { "GOL": 1, "LAT": 3, "ZAG": 3, "MEI": 3, "ATA": 2 },
     };
+    const vagas = vagasMap[esquema] || vagasMap["4-3-3"];
+    const vagasStr = Object.entries(vagas).map(function(e){ return e[1] + " " + e[0]; }).join(", ");
+    const totalTitulares = Object.values(vagas).reduce(function(s,v){return s+v;}, 0);
 
-    const atletasPrompt = top_atletas.map(function(a) {
-      const posC = a.total_clubes - a.ranking_clube + 1;
-      const posA = a.total_clubes - a.forca_adversario + 1;
-      return {
-        id: a.id, nome: a.nome, pos: a.posicao, clube: a.clube_abrev,
-        pos_tabela_clube: posC, pos_tabela_adv: posA,
-        preco: a.preco, media: a.media, variacao: a.variacao, jogos: a.jogos,
-        mando: a.mando, adversario: a.adversario,
-        dificuldade: a.dificuldade + "/5", score: a.score_final,
-      };
+    // Montar lista separada por posicao com IDs claros
+    const atletasPorPos = {};
+    ["GOL","LAT","ZAG","MEI","ATA"].forEach(function(pos) {
+      atletasPorPos[pos] = top_atletas.filter(function(a){return a.posicao===pos;}).map(function(a){
+        const posC = a.total_clubes - a.ranking_clube + 1;
+        const posA = a.total_clubes - a.forca_adversario + 1;
+        return {
+          id: a.id, nome: a.nome, clube: a.clube_abrev,
+          tabela_clube: posC, tabela_adv: posA,
+          preco: a.preco, media: a.media, var: a.variacao,
+          mando: a.mando, adv: a.adversario,
+          dif: a.dificuldade + "/5", score: a.score_final,
+        };
+      });
     });
 
-    const prompt = "Voce e especialista em Cartola FC. Monte o melhor time para a Rodada " + rodada + ".\n\n" +
-      "Orcamento: C$ " + orcamento + " | Esquema: " + esquema + " | Vagas: " + (vagas[esquema] || vagas["4-3-3"]) + "\n" +
-      "Monte 11 titulares + 1 reserva. Soma dos precos <= C$ " + orcamento + "\n\n" +
-      "JOGOS DA RODADA (numero entre parenteses = posicao na tabela, 1=lider, maior=lanterna):\n" +
-      (partidasStr || "nao disponivel") + "\n\n" +
-      "REGRAS OBRIGATORIAS:\n" +
-      "1. score eh o melhor indicador geral, use como base\n" +
-      "2. pos_tabela_clube indica forca do clube. pos_tabela_adv indica forca do adversario\n" +
-      "3. NUNCA escale jogador de time lanterna (pos_tabela_clube alto) contra time forte (pos_tabela_adv baixo)\n" +
-      "4. Mando casa so ajuda se os times sao equilibrados ou o time da casa e superior\n" +
-      "5. Exemplo ruim: clube pos 18 vs adversario pos 2 mesmo em casa = evitar\n" +
-      "6. Exemplo bom: clube pos 3 vs adversario pos 15 = otimo confronto\n" +
-      "7. Capitao deve ter media alta E confronto favoravel (pos_tabela_adv alta = adversario fraco)\n\n" +
-      "Atletas:\n" + JSON.stringify(atletasPrompt) + "\n\n" +
-      "RESPONDA SO COM JSON PURO SEM MARKDOWN:\n" +
-      "{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"\",\"clube\":\"\",\"preco\":0,\"media\":0,\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":\"\",\"titular\":true,\"capitao\":false,\"vice\":false,\"justificativa\":\"\"}],\"capitao\":{\"id\":0,\"nome\":\"\"},\"vice_capitao\":{\"id\":0,\"nome\":\"\"},\"custo_total\":0,\"pontuacao_esperada\":0,\"analise\":\"\",\"alertas\":[]}";
+    const prompt =
+      "Voce e especialista em Cartola FC. Monte o melhor time para a Rodada " + rodada + ".\n\n" +
+      "ESQUEMA: " + esquema + " = " + vagasStr + " + 1 RESERVA (qualquer posicao)\n" +
+      "TOTAL: " + totalTitulares + " titulares + 1 reserva = 12 atletas\n" +
+      "ORCAMENTO MAXIMO: C$ " + orcamento + "\n\n" +
+      "ATENCAO - REGRAS CRITICAS:\n" +
+      "- Escolha EXATAMENTE " + vagas["GOL"] + " GOL, " + vagas["LAT"] + " LAT, " + vagas["ZAG"] + " ZAG, " + vagas["MEI"] + " MEI, " + vagas["ATA"] + " ATA como titulares\n" +
+      "- NUNCA escolha o mesmo atleta (mesmo ID) duas vezes\n" +
+      "- Cada atleta so pode aparecer uma vez no time\n" +
+      "- tabela_clube = posicao do clube na tabela (1=lider, alto=lanterna)\n" +
+      "- tabela_adv = posicao do adversario (1=lider, alto=lanterna)\n" +
+      "- EVITE atletas com tabela_clube alto (time fraco) contra tabela_adv baixo (time forte)\n" +
+      "- Mando casa so e vantagem se o clube for equilibrado ou superior ao adversario\n\n" +
+      "JOGOS: " + (partidasStr || "nao disponivel") + "\n\n" +
+      "GOLEIROS (escolha " + vagas["GOL"] + "):\n" + JSON.stringify(atletasPorPos["GOL"]) + "\n\n" +
+      "LATERAIS (escolha " + vagas["LAT"] + "):\n" + JSON.stringify(atletasPorPos["LAT"]) + "\n\n" +
+      "ZAGUEIROS (escolha " + vagas["ZAG"] + "):\n" + JSON.stringify(atletasPorPos["ZAG"]) + "\n\n" +
+      "MEIAS (escolha " + vagas["MEI"] + "):\n" + JSON.stringify(atletasPorPos["MEI"]) + "\n\n" +
+      "ATACANTES (escolha " + vagas["ATA"] + "):\n" + JSON.stringify(atletasPorPos["ATA"]) + "\n\n" +
+      "RESPONDA APENAS COM JSON PURO:\n" +
+      "{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"GOL\",\"clube\":\"\",\"preco\":0,\"media\":0,\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":\"\",\"titular\":true,\"capitao\":false,\"vice\":false,\"justificativa\":\"\"}],\"capitao\":{\"id\":0,\"nome\":\"\"},\"vice_capitao\":{\"id\":0,\"nome\":\"\"},\"custo_total\":0,\"pontuacao_esperada\":0,\"analise\":\"\",\"alertas\":[]}";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -104,10 +116,19 @@ const handler = async (event, context) => {
     catch(e) {
       const match = clean.match(/\{[\s\S]*\}/);
       if (match) { try { escalacao = JSON.parse(match[0]); } catch(e2) { throw new Error("JSON invalido: " + e2.message); } }
-      else throw new Error("Sem JSON: " + clean.substring(0, 200));
+      else throw new Error("Sem JSON: " + clean.substring(0, 300));
     }
 
+    // Validar e corrigir duplicatas no servidor
     if (escalacao.time) {
+      const idsVistos = new Set();
+      escalacao.time = escalacao.time.filter(function(t) {
+        if (idsVistos.has(t.id)) return false;
+        idsVistos.add(t.id);
+        return true;
+      });
+
+      // Enriquecer com dados originais
       escalacao.time = escalacao.time.map(function(t) {
         const orig = atletas.find(function(a){ return a.id === t.id; });
         return Object.assign({}, t, {
