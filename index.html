@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartola AI — Escalador Inteligente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --verde: #00c853;
+      --verde-dark: #007e33;
+      --verde-glow: rgba(0,200,83,0.18);
+      --campo: #1a6b2f;
+      --campo-light: #217a38;
+      --campo-line: rgba(255,255,255,0.12);
+      --bg: #0d1117;
+      --bg2: #131920;
+      --bg3: #1c2530;
+      --card: #1e2a38;
+      --card2: #243040;
+      --gold: #ffd600;
+      --silver: #b0bec5;
+      --text: #e8f0fe;
+      --text2: #8fa3b8;
+      --text3: #4d6070;
+      --red: #ff5252;
+      --amber: #ffab40;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #0a2e1a 0%, #0d1117 60%);
+      border-bottom: 1px solid rgba(0,200,83,0.2);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--verde);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: 1px;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .logo-text span { color: var(--verde); }
+
+    .header-badge {
+      background: var(--verde-glow);
+      border: 1px solid rgba(0,200,83,0.3);
+      color: var(--verde);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── NAV TABS ───────────────────────────────── */
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 16px 24px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .tab-btn.active { color: var(--verde); border-bottom-color: var(--verde); background: rgba(0,200,83,0.05); }
+
+    /* ── MAIN LAYOUT ────────────────────────────── */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+
+    /* ── PAINEL DE CONTROLE ─────────────────────── */
+    .control-panel {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .control-group select,
+    .control-group input[type="number"] {
+      background: var(--bg3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 8px 12px;
+      outline: none;
+      min-width: 120px;
+      transition: border-color 0.2s;
+    }
+
+    .control-group select:focus,
+    .control-group input:focus {
+      border-color: var(--verde);
+    }
+
+    .orcamento-display {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--verde);
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+
+    .btn-primary {
+      background: var(--verde);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { background: #00e060; transform: translateY(-1px); }
+    .btn-primary:disabled { background: var(--text3); cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text2);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: var(--verde); color: var(--verde); }
+
+    /* ── CAMPO ──────────────────────────────────── */
+    .campo-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .campo-wrapper { grid-template-columns: 1fr; }
+    }
+
+    .campo-container {
+      background: var(--campo);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      min-height: 560px;
+    }
+
+    /* Textura do campo */
+    .campo-container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 60px,
+        rgba(0,0,0,0.08) 60px,
+        rgba(0,0,0,0.08) 120px
+      );
+      pointer-events: none;
+    }
+
+    .campo-linhas {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .campo-svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0.25;
+    }
+
+    .campo-posicoes {
+      position: relative;
+      z-index: 2;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      height: 100%;
+    }
+
+    .campo-linha {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex: 1;
+      align-items: center;
+    }
+
+    /* Card do atleta no campo */
+    .atleta-card-campo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      width: 72px;
+    }
+
+    .atleta-card-campo:hover { transform: translateY(-3px); }
+
+    .atleta-avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: var(--bg3);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .atleta-avatar.capitao {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(255,214,0,0.4);
+    }
+
+    .atleta-avatar.vice {
+      border-color: var(--silver);
+      box-shadow: 0 0 8px rgba(176,190,197,0.3);
+    }
+
+    .atleta-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .atleta-avatar-placeholder {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--text2);
+    }
+
+    .capitao-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      width: 18px; height: 18px;
+      background: var(--gold);
+      border-radius: 50%;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #000;
+    }
+
+    .atleta-nome-campo {
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      max-width: 72px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+
+    .atleta-media-badge {
+      background: rgba(0,0,0,0.6);
+      color: var(--verde);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      letter-spacing: 0.3px;
+    }
+
+    .atleta-preco-badge {
+      background: rgba(0,0,0,0.5);
+      color: var(--gold);
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 8px;
+    }
+
+    /* Slot vazio */
+    .slot-vazio {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 2px dashed rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.3);
+      font-size: 22px;
+    }
+
+    /* ── SIDEBAR RESULTADO ──────────────────────── */
+    .sidebar-resultado {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .resultado-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .resultado-card h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      color: var(--text2);
+      margin-bottom: 14px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stat-row:last-child { border-bottom: none; }
+
+    .stat-label { font-size: 13px; color: var(--text2); }
+
+    .stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .stat-value.verde { color: var(--verde); }
+    .stat-value.gold { color: var(--gold); }
+
+    .analise-texto {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.7;
+    }
+
+    .alerta-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 0;
+      font-size: 12px;
+      color: var(--text2);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .alerta-item:last-child { border-bottom: none; }
+    .alerta-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-top: 5px; flex-shrink: 0; }
+
+    /* ── LOADING ───────────────────────────────── */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,17,23,0.9);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .loading-overlay.active { display: flex; }
+
+    .loading-ball {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fff 0%, var(--verde) 40%, #006622 100%);
+      animation: spin 1s linear infinite, bounce 0.5s ease-in-out infinite alternate;
+      box-shadow: 0 0 30px var(--verde-glow);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes bounce { to { transform: translateY(-12px) rotate(360deg); } }
+
+    .loading-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: var(--verde);
+    }
+
+    .loading-sub {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    /* ── TABELA DE ATLETAS ─────────────────────── */
+    .filtros-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .filtro-btn {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filtro-btn:hover { border-color: var(--verde); color: var(--verde); }
+    .filtro-btn.active { background: var(--verde-glow); border-color: var(--verde); color: var(--verde); }
+
+    .search-input {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 8px 14px;
+      outline: none;
+      min-width: 200px;
+      transition: border-color 0.2s;
+      margin-left: auto;
+    }
+
+    .search-input:focus { border-color: var(--verde); }
+    .search-input::placeholder { color: var(--text3); }
+
+    .atletas-table-wrapper {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text3);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    thead th:hover { color: var(--verde); }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody tr:last-child { border-bottom: none; }
+
+    td {
+      padding: 10px 16px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .pos-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .pos-GOL { background: rgba(255,214,0,0.15); color: var(--gold); }
+    .pos-LAT { background: rgba(100,181,246,0.15); color: #64b5f6; }
+    .pos-ZAG { background: rgba(129,199,132,0.15); color: #81c784; }
+    .pos-MEI { background: rgba(186,104,200,0.15); color: #ba68c8; }
+    .pos-ATA { background: rgba(255,82,82,0.15); color: var(--red); }
+
+    .variacao-up { color: var(--verde); font-weight: 600; }
+    .variacao-down { color: var(--red); font-weight: 600; }
+
+    .cb-bar-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cb-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--verde);
+      min-width: 4px;
+    }
+
+    /* ── ESTADO VAZIO / ERROR ───────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text2);
+    }
+
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+
+    .empty-state h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* ── TOAST ─────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--card2);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 300;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+      max-width: 320px;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { border-color: rgba(255,82,82,0.4); color: var(--red); }
+    .toast.success { border-color: rgba(0,200,83,0.4); color: var(--verde); }
+
+    /* ── RODADA INFO ───────────────────────────── */
+    .rodada-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .rodada-badge {
+      background: var(--verde-glow);
+      border: 1px solid rgba(0,200,83,0.25);
+      color: var(--verde);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 1px;
+    }
+
+    .mercado-status {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .dot-verde { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); margin-right: 6px; }
+
+    /* ── RESERVA SECTION ───────────────────────── */
+    .reserva-section {
+      padding: 12px;
+      text-align: center;
+      border-top: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    .reserva-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-ball"></div>
+  <div class="loading-text" id="loadingText">ESCALANDO O TIME...</div>
+  <div class="loading-sub" id="loadingSub">A IA está analisando todos os atletas disponíveis</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚽</div>
+    <div class="logo-text">Cartola <span>AI</span></div>
+  </div>
+  <span class="header-badge" id="headerRodada">Carregando...</span>
+</header>
+
+<!-- Tabs -->
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="switchTab('escalacao')">⚽ Escalação</button>
+  <button class="tab-btn" onclick="switchTab('atletas')">📊 Atletas</button>
+</div>
+
+<!-- Main -->
+<main>
+
+  <!-- ── TAB ESCALAÇÃO ── -->
+  <div class="tab-view active" id="tab-escalacao">
+
+    <!-- Painel de controle -->
+    <div class="control-panel">
+      <div class="control-group">
+        <label>Orçamento (C$)</label>
+        <input type="number" id="orcamento" value="140" min="60" max="200" step="0.5" oninput="updateOrcamento()" />
+      </div>
+      <div class="control-group">
+        <label>C$ disponível</label>
+        <div class="orcamento-display" id="orcamentoDisplay">C$ 140</div>
+      </div>
+      <div class="control-group">
+        <label>Esquema tático</label>
+        <select id="esquema">
+          <option value="4-3-3">4-3-3</option>
+          <option value="4-4-2">4-4-2</option>
+          <option value="3-5-2">3-5-2</option>
+          <option value="5-3-2">5-3-2</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="btnEscalar" onclick="escalarTime()">
+        ⚡ Escalar com IA
+      </button>
+      <button class="btn-secondary" onclick="carregarAtletas()">🔄 Atualizar mercado</button>
+    </div>
+
+    <!-- Rodada info -->
+    <div class="rodada-info" id="rodadaInfo" style="display:none">
+      <div class="rodada-badge" id="rodadaBadge">—</div>
+      <span class="mercado-status"><span class="dot-verde"></span><span id="mercadoStatusTxt">Mercado aberto</span></span>
+      <span class="mercado-status" id="totalAtletasInfo"></span>
+    </div>
+
+    <!-- Campo + sidebar -->
+    <div class="campo-wrapper">
+
+      <!-- Campo -->
+      <div class="campo-container">
+        <!-- Linhas do campo SVG -->
+        <div class="campo-linhas">
+          <svg class="campo-svg" viewBox="0 0 400 560" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="1.5">
+            <rect x="10" y="10" width="380" height="540" rx="2"/>
+            <line x1="10" y1="280" x2="390" y2="280"/>
+            <circle cx="200" cy="280" r="50"/>
+            <rect x="130" y="10" width="140" height="70"/>
+            <rect x="130" y="480" width="140" height="70"/>
+            <rect x="160" y="10" width="80" height="30"/>
+            <rect x="160" y="520" width="80" height="30"/>
+            <circle cx="200" cy="65" r="3" fill="white" stroke="none"/>
+            <circle cx="200" cy="495" r="3" fill="white" stroke="none"/>
+            <circle cx="200" cy="280" r="3" fill="white" stroke="none"/>
+            <path d="M130 10 Q130 70 10 70" stroke-width="1"/>
+            <path d="M270 10 Q270 70 390 70" stroke-width="1"/>
+            <path d="M130 550 Q130 490 10 490" stroke-width="1"/>
+            <path d="M270 550 Q270 490 390 490" stroke-width="1"/>
+          </svg>
+        </div>
+
+        <!-- Posições no campo -->
+        <div class="campo-posicoes" id="campoPosicoes">
+          <div class="empty-state" style="padding:40px 16px;">
+            <div class="empty-icon">⚽</div>
+            <h3>Time não escalado</h3>
+            <p>Configure o orçamento e o esquema tático,<br>depois clique em <strong>Escalar com IA</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar resultado -->
+      <div class="sidebar-resultado" id="sidebarResultado">
+        <div class="resultado-card">
+          <h3>📋 Resumo</h3>
+          <div id="resumoContent">
+            <p style="font-size:13px;color:var(--text2);line-height:1.6;">
+              O time aparecerá aqui após a escalação.<br><br>
+              A IA analisa forma recente, custo-benefício e o adversário de cada atleta para montar o time mais competitivo dentro do seu orçamento.
+            </p>
+          </div>
+        </div>
+        <div class="resultado-card" id="analiseCard" style="display:none">
+          <h3>🤖 Análise IA</h3>
+          <p class="analise-texto" id="analiseTexto"></p>
+        </div>
+        <div class="resultado-card" id="alertasCard" style="display:none">
+          <h3>⚠️ Alertas</h3>
+          <div id="alertasContent"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB ATLETAS ── -->
+  <div class="tab-view" id="tab-atletas">
+    <div class="filtros-bar">
+      <button class="filtro-btn active" onclick="filtrarPos('TODOS', this)">Todos</button>
+      <button class="filtro-btn" onclick="filtrarPos('GOL', this)">GOL</button>
+      <button class="filtro-btn" onclick="filtrarPos('LAT', this)">LAT</button>
+      <button class="filtro-btn" onclick="filtrarPos('ZAG', this)">ZAG</button>
+      <button class="filtro-btn" onclick="filtrarPos('MEI', this)">MEI</button>
+      <button class="filtro-btn" onclick="filtrarPos('ATA', this)">ATA</button>
+      <input type="text" class="search-input" placeholder="🔍 Buscar atleta..." oninput="buscarAtleta(this.value)" />
+    </div>
+    <div class="atletas-table-wrapper">
+      <table id="atletasTable">
+        <thead>
+          <tr>
+            <th onclick="ordenar('posicao')">Pos</th>
+            <th onclick="ordenar('nome')">Atleta</th>
+            <th onclick="ordenar('clube')">Clube</th>
+            <th onclick="ordenar('preco')">Preço C$</th>
+            <th onclick="ordenar('media')">Média</th>
+            <th onclick="ordenar('variacao')">Var.</th>
+            <th onclick="ordenar('jogos')">Jogos</th>
+            <th onclick="ordenar('cb_score')">C/B Score</th>
+          </tr>
+        </thead>
+        <tbody id="atletasTbody">
+          <tr>
+            <td colspan="8" style="text-align:center;padding:40px;color:var(--text2);">
+              Carregando atletas do mercado...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Estado global ──────────────────────────────
+let state = {
+  atletas: [],
+  clubes: {},
+  rodada: null,
+  escalacao: null,
+  filtroPos: 'TODOS',
+  busca: '',
+  sortCol: 'cb_score',
+  sortDir: -1,
+};
+
+// ── Init ───────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  carregarAtletas();
+});
+
+// ── Tabs ───────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── Orçamento display ──────────────────────────
+function updateOrcamento() {
+  const v = document.getElementById('orcamento').value;
+  document.getElementById('orcamentoDisplay').textContent = 'C$ ' + parseFloat(v).toFixed(1);
+}
+
+// ── Toast ──────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── Loading ────────────────────────────────────
+function setLoading(on, text = 'CARREGANDO...', sub = '') {
+  const el = document.getElementById('loadingOverlay');
+  el.classList.toggle('active', on);
+  if (text) document.getElementById('loadingText').textContent = text;
+  if (sub) document.getElementById('loadingSub').textContent = sub;
+}
+
+// ── Carregar atletas ───────────────────────────
+async function carregarAtletas() {
+  setLoading(true, 'BUSCANDO MERCADO...', 'Conectando à API do Cartola FC');
+  try {
+    const res = await fetch('/api/atletas');
+    const data = await res.json();
+
+    if (!data.ok) throw new Error(data.error || 'Erro ao buscar atletas');
+
+    state.atletas = data.atletas || [];
+    state.clubes = data.clubes || {};
+    state.rodada = data.rodada;
+
+    // Header badge
+    document.getElementById('headerRodada').textContent = `Rodada ${data.rodada}`;
+
+    // Rodada info
+    const ri = document.getElementById('rodadaInfo');
+    ri.style.display = 'flex';
+    document.getElementById('rodadaBadge').textContent = `Rodada ${data.rodada}`;
+    document.getElementById('mercadoStatusTxt').textContent =
+      data.mercado_status === 1 ? 'Mercado aberto' : 'Mercado fechado';
+    document.getElementById('totalAtletasInfo').textContent =
+      `${data.total_atletas} atletas disponíveis`;
+
+    renderizarTabela();
+    showToast(`✅ ${data.total_atletas} atletas carregados — Rodada ${data.rodada}`, 'success');
+
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Escalar time ───────────────────────────────
+async function escalarTime() {
+  if (state.atletas.length === 0) {
+    showToast('⚠️ Carregue os atletas primeiro', 'error');
+    return;
+  }
+
+  const orcamento = parseFloat(document.getElementById('orcamento').value);
+  const esquema = document.getElementById('esquema').value;
+
+  setLoading(true, 'ESCALANDO O TIME...', 'A IA está analisando forma, custo-benefício e adversários');
+
+  try {
+    const res = await fetch('/api/escalar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        atletas: state.atletas,
+        orcamento,
+        esquema,
+        rodada: state.rodada,
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Erro ao escalar');
+
+    state.escalacao = data.escalacao;
+    renderizarCampo(data.escalacao, esquema);
+    renderizarSidebar(data.escalacao);
+    showToast('⚽ Time escalado com sucesso!', 'success');
+
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Renderizar campo ───────────────────────────
+function renderizarCampo(esc, esquema) {
+  const container = document.getElementById('campoPosicoes');
+
+  // Distribuição por esquema
+  const layouts = {
+    '4-3-3': { GOL:[1], DEF:[4], MEI:[3], ATA:[3] },
+    '4-4-2': { GOL:[1], DEF:[4], MEI:[4], ATA:[2] },
+    '3-5-2': { GOL:[1], DEF:[3], MEI:[5], ATA:[2] },
+    '5-3-2': { GOL:[1], DEF:[5], MEI:[3], ATA:[2] },
+  };
+
+  const layout = layouts[esquema] || layouts['4-3-3'];
+  const titulares = esc.time.filter(a => a.titular !== false);
+  const reserva = esc.time.find(a => a.titular === false);
+
+  // Separar por posição
+  const gols = titulares.filter(a => a.posicao === 'GOL');
+  const defs = titulares.filter(a => ['LAT','ZAG'].includes(a.posicao));
+  const meis = titulares.filter(a => a.posicao === 'MEI');
+  const atas = titulares.filter(a => a.posicao === 'ATA');
+
+  const linhas = [atas, meis, defs, gols];
+  const lineLabels = ['ATA', 'MEI', 'DEF', 'GOL'];
+
+  let html = '';
+
+  linhas.forEach((grupo, i) => {
+    if (grupo.length === 0) return;
+    html += `<div class="campo-linha">`;
+    grupo.forEach(a => {
+      const isCap = esc.capitao?.id === a.id;
+      const isVice = esc.vice_capitao?.id === a.id;
+      const iniciais = a.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+      html += `
+        <div class="atleta-card-campo" title="${a.nome} — C$ ${a.preco} | Média: ${a.media}">
+          <div class="atleta-avatar ${isCap ? 'capitao' : isVice ? 'vice' : ''}">
+            ${a.foto ? `<img src="${a.foto}" alt="${a.nome}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>` : ''}
+            <div class="atleta-avatar-placeholder" ${a.foto ? 'style="display:none"' : ''}>${iniciais}</div>
+            ${isCap ? '<div class="capitao-badge">C</div>' : ''}
+            ${isVice ? '<div class="capitao-badge" style="background:var(--silver)">V</div>' : ''}
+          </div>
+          <div class="atleta-nome-campo">${a.nome.split(' ')[0]}</div>
+          <div class="atleta-media-badge">${parseFloat(a.media || 0).toFixed(1)}</div>
+          <div class="atleta-preco-badge">C$ ${parseFloat(a.preco || 0).toFixed(1)}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // Reserva
+  if (reserva) {
+    const iniciais = reserva.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+    html += `
+      <div class="reserva-section">
+        <div class="reserva-label">Reserva</div>
+        <div style="display:flex;justify-content:center;">
+          <div class="atleta-card-campo" title="Reserva: ${reserva.nome}">
+            <div class="atleta-avatar" style="border-style:dashed;opacity:0.7">
+              ${reserva.foto ? `<img src="${reserva.foto}" alt="${reserva.nome}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>` : ''}
+              <div class="atleta-avatar-placeholder" ${reserva.foto ? 'style="display:none"' : ''}>${iniciais}</div>
+            </div>
+            <div class="atleta-nome-campo">${reserva.nome.split(' ')[0]}</div>
+            <div class="atleta-media-badge">${parseFloat(reserva.media || 0).toFixed(1)}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// ── Renderizar sidebar ─────────────────────────
+function renderizarSidebar(esc) {
+  // Resumo
+  const cap = esc.capitao?.nome || '—';
+  const vice = esc.vice_capitao?.nome || '—';
+  const custo = parseFloat(esc.custo_total || 0).toFixed(1);
+  const pontos = parseFloat(esc.pontuacao_esperada || 0).toFixed(1);
+  const orcamento = document.getElementById('orcamento').value;
+  const saldo = (parseFloat(orcamento) - parseFloat(custo)).toFixed(1);
+
+  document.getElementById('resumoContent').innerHTML = `
+    <div class="stat-row">
+      <span class="stat-label">💰 Custo total</span>
+      <span class="stat-value gold">C$ ${custo}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">💵 Saldo restante</span>
+      <span class="stat-value ${parseFloat(saldo) >= 0 ? 'verde' : ''}" style="${parseFloat(saldo) < 0 ? 'color:var(--red)' : ''}">C$ ${saldo}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">📈 Pontuação esperada</span>
+      <span class="stat-value verde">${pontos} pts</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">👑 Capitão</span>
+      <span class="stat-value gold">${cap}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">🥈 Vice-capitão</span>
+      <span class="stat-value">${vice}</span>
+    </div>
+  `;
+
+  // Análise IA
+  if (esc.analise) {
+    document.getElementById('analiseCard').style.display = 'block';
+    document.getElementById('analiseTexto').textContent = esc.analise;
+  }
+
+  // Alertas
+  if (esc.alertas && esc.alertas.length > 0) {
+    document.getElementById('alertasCard').style.display = 'block';
+    document.getElementById('alertasContent').innerHTML = esc.alertas
+      .map(a => `<div class="alerta-item"><div class="alerta-dot"></div><span>${a}</span></div>`)
+      .join('');
+  }
+}
+
+// ── Tabela de atletas ──────────────────────────
+function renderizarTabela() {
+  let lista = [...state.atletas];
+
+  if (state.filtroPos !== 'TODOS') {
+    lista = lista.filter(a => a.posicao === state.filtroPos);
+  }
+
+  if (state.busca) {
+    const b = state.busca.toLowerCase();
+    lista = lista.filter(a =>
+      a.nome.toLowerCase().includes(b) || a.clube.toLowerCase().includes(b)
+    );
+  }
+
+  lista.sort((a, b) => {
+    const va = a[state.sortCol] ?? 0;
+    const vb = b[state.sortCol] ?? 0;
+    if (typeof va === 'string') return va.localeCompare(vb) * state.sortDir;
+    return (vb - va) * state.sortDir;
+  });
+
+  const maxCB = Math.max(...lista.map(a => a.cb_score), 1);
+
+  const tbody = document.getElementById('atletasTbody');
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text2);">Nenhum atleta encontrado</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(a => `
+    <tr>
+      <td><span class="pos-badge pos-${a.posicao}">${a.posicao}</span></td>
+      <td style="font-weight:600">${a.nome}</td>
+      <td style="color:var(--text2)">${a.clube_abrev}</td>
+      <td style="color:var(--gold);font-weight:600">C$ ${parseFloat(a.preco).toFixed(2)}</td>
+      <td style="color:var(--verde);font-weight:600">${parseFloat(a.media).toFixed(2)}</td>
+      <td class="${a.variacao >= 0 ? 'variacao-up' : 'variacao-down'}">${a.variacao >= 0 ? '+' : ''}${parseFloat(a.variacao).toFixed(2)}</td>
+      <td style="color:var(--text2)">${a.jogos}</td>
+      <td>
+        <div class="cb-bar-wrapper">
+          <span style="font-weight:600;font-size:12px;min-width:36px">${parseFloat(a.cb_score).toFixed(2)}</span>
+          <div class="cb-bar" style="width:${Math.round((a.cb_score/maxCB)*80)}px"></div>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filtrarPos(pos, btn) {
+  state.filtroPos = pos;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderizarTabela();
+}
+
+function buscarAtleta(val) {
+  state.busca = val;
+  renderizarTabela();
+}
+
+function ordenar(col) {
+  if (state.sortCol === col) {
+    state.sortDir *= -1;
+  } else {
+    state.sortCol = col;
+    state.sortDir = -1;
+  }
+  renderizarTabela();
+}
+</script>
+
+</body>
+</html>
