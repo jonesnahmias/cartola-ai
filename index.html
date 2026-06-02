@@ -366,7 +366,7 @@ async function escalarTime(){
   try{
     var res=await fetch('/api/escalar',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({atletas:S.atletas,orcamento:orc,esquema:esq,rodada:S.rodada,partidas:S.partidas})
+      body:JSON.stringify({atletas:S.atletas,orcamento:orc,esquema:esq,rodada:S.rodada,partidas:S.partidas,clubes:S.clubes})
     });
     var data=await res.json();
     if(!data.ok)throw new Error(data.error||'Erro ao escalar');
