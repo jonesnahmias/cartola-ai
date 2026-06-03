@@ -322,20 +322,24 @@ function renderCampo(esc){
   var todos=esc.time||[];
   var tec=todos.find(function(a){return a.posicao==='TEC';});
   var jogs=todos.filter(function(a){return a.posicao!=='TEC';});
-  var atas=jogs.filter(function(a){return a.posicao==='ATA';});
+
+  // Separar defensores em laterais e zagueiros
+  var lats=jogs.filter(function(a){return a.posicao==='LAT';});
+  var zags=jogs.filter(function(a){return a.posicao==='ZAG';});
   var meis=jogs.filter(function(a){return a.posicao==='MEI';});
-  var defs=jogs.filter(function(a){return a.posicao==='LAT'||a.posicao==='ZAG';});
+  var atas=jogs.filter(function(a){return a.posicao==='ATA';});
   var gols=jogs.filter(function(a){return a.posicao==='GOL';});
 
-  function card(a){
+  function card(a,small){
     var cap=esc.capitao&&esc.capitao.id===a.id;
     var vic=esc.vice_capitao&&esc.vice_capitao.id===a.id;
     var d=a.dificuldade||3;
     var mc=a.mando==='casa'?'bmc':'bmf';
     var ml=a.mando==='casa'?'H':'F';
-    var h='<div class="ac">';
-    h+='<div class="av'+(cap?' cap':vic?' vic':'')+'">';
-    if(a.foto){h+='<img src="'+a.foto+'" alt="" onerror="this.style.cssText=\'display:none\'">';}
+    var sz=small?'style="width:44px;height:44px"':'';
+    var h='<div class="ac" title="'+a.nome+' | Media:'+a.media+' | '+(a.mando==='casa'?'Casa':'Fora')+' vs '+(a.adversario||'?')+'">';
+    h+='<div class="av'+(cap?' cap':vic?' vic':'')+'" '+sz+'>';
+    if(a.foto)h+='<img src="'+a.foto+'" alt="">';
     h+='<div class="av-i">'+ini(a.nome)+'</div>';
     if(cap)h+='<div class="cb">C</div>';
     else if(vic)h+='<div class="cb" style="background:var(--silver)">V</div>';
@@ -348,12 +352,31 @@ function renderCampo(esc){
     return h;
   }
 
+  // Linha de defesa: LAT | ZAG(s) | LAT
+  function defRow(){
+    var h='<div class="cl" style="gap:4px;width:100%;justify-content:center;align-items:center">';
+    // Lateral esquerdo
+    if(lats[0]) h+=card(lats[0]);
+    else h+='<div style="width:68px"></div>';
+    // Zagueiros no centro
+    if(zags.length){
+      h+='<div style="display:flex;gap:6px;justify-content:center">';
+      zags.forEach(function(a){h+=card(a);});
+      h+='</div>';
+    }
+    // Lateral direito
+    if(lats[1]) h+=card(lats[1]);
+    else if(lats.length===1){h+='';}
+    h+='</div>';
+    return h;
+  }
+
   var html='<div class="tec-col">';
   if(tec){
     html+='<div class="tec-lbl">TEC</div>';
     html+='<div class="ac">';
     html+='<div class="av tec">';
-    if(tec.foto){html+='<img src="'+tec.foto+'" alt="" onerror="this.style.cssText=\'display:none\'">';}
+    if(tec.foto)html+='<img src="'+tec.foto+'" alt="">';
     html+='<div class="av-i" style="font-size:13px">'+ini(tec.nome)+'</div>';
     html+='</div>';
     html+='<div class="an">'+(tec.nome||'').split(' ')[0]+'</div>';
@@ -361,16 +384,22 @@ function renderCampo(esc){
     html+='</div>';
   }
   html+='</div>';
+
   html+='<div class="cfield">';
-  if(atas.length){html+='<div class="cl ata">';atas.forEach(function(a){html+=card(a);});html+='</div>';}
-  else{html+='<div class="cl ata"></div>';}
-  if(meis.length){html+='<div class="cl mei">';meis.forEach(function(a){html+=card(a);});html+='</div>';}
-  else{html+='<div class="cl mei"></div>';}
-  if(defs.length){html+='<div class="cl def">';defs.forEach(function(a){html+=card(a);});html+='</div>';}
-  else{html+='<div class="cl def"></div>';}
+  // ATA
+  if(atas.length){html+='<div class="cl">';atas.forEach(function(a){html+=card(a);});html+='</div>';}
+  else html+='<div class="cl"></div>';
+  // MEI
+  if(meis.length){html+='<div class="cl">';meis.forEach(function(a){html+=card(a);});html+='</div>';}
+  else html+='<div class="cl"></div>';
+  // DEF: LAT-ZAG(s)-LAT
+  if(lats.length||zags.length) html+=defRow();
+  else html+='<div class="cl"></div>';
+  // GOL
   if(gols.length){html+='<div class="cl gol">';gols.forEach(function(a){html+=card(a);});html+='</div>';}
-  else{html+='<div class="cl gol"></div>';}
+  else html+='<div class="cl gol"></div>';
   html+='</div>';
+
   c.innerHTML=html;
 }
 
