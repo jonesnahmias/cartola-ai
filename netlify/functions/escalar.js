@@ -4,7 +4,7 @@ function callClaude(apiKey, prompt) {
   return new Promise(function(resolve, reject) {
     var payload = JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      max_tokens: 2500,
       messages: [{ role: "user", content: prompt }]
     });
     var options = {
@@ -87,7 +87,7 @@ const handler = async (event, context) => {
 
     var vagStr = Object.entries(vagas).map(function(e){return e[1]+e[0];}).join("+");
     var modo = estrategia==="pontuacao"?"pts":estrategia==="valorizacao"?"val":"mix";
-    var tmpl = '{"time":[{"id":0,"nome":"","posicao":"","clube":"","preco":0,"media":0,"mando":"","adversario":"","dificuldade":2,"capitao":false,"vice":false,"justificativa":""}],"capitao":{"id":0,"nome":"","pts_capitao":0},"vice_capitao":{"id":0,"nome":""},"custo_total":0,"pontuacao_esperada":0,"perfil":"","analise":"","alertas":[],"oportunidades":[]}';
+    var tmpl = '{"time":[{"id":0,"nome":"","posicao":"","clube":"","preco":0,"media":0,"mando":"","adversario":"","dificuldade":2,"capitao":false,"vice":false,"justificativa":""}],"capitao":{"id":0,"nome":""},"vice_capitao":{"id":0,"nome":""},"custo_total":0,"pontuacao_esperada":0,"analise":"","alertas":[]}';
 
     var prompt = "CartolaCup R"+rodada+"|"+esquema+"="+vagStr+"+TEC=12|C$<="+orcamento+"|"+modo+"\n" +
       "Jogos:"+jogos+"\n" +
@@ -98,7 +98,7 @@ const handler = async (event, context) => {
       "MEI"+vagas.MEI+":"+JSON.stringify(por_pos.MEI||[])+" " +
       "ATA"+vagas.ATA+":"+JSON.stringify(por_pos.ATA||[])+" " +
       "TEC1:"+JSON.stringify(por_pos.TEC||[]) + "\n" +
-      "JSON ONLY NO MARKDOWN:\n" + tmpl;
+      "Responda SOMENTE com JSON valido e completo, sem markdown, sem texto antes ou depois:\n" + tmpl;
 
     const res = await callClaude(KEY, prompt);
     if (res.status !== 200) throw new Error("Claude " + res.status + ": " + res.body.slice(0,100));
