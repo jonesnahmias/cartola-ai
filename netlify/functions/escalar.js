@@ -1,40 +1,44 @@
 const https = require("https");
 
-function httpPost(hostname, path, headers, body) {
+function callClaude(apiKey, prompt) {
   return new Promise(function(resolve, reject) {
-    var data = JSON.stringify(body);
+    var payload = JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }]
+    });
     var options = {
-      hostname: hostname,
+      hostname: "api.anthropic.com",
       port: 443,
-      path: path,
+      path: "/v1/messages",
       method: "POST",
-      headers: Object.assign({}, headers, {
-        "Content-Length": Buffer.byteLength(data)
-      })
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Length": Buffer.byteLength(payload)
+      }
     };
     var req = https.request(options, function(res) {
       var chunks = [];
       res.on("data", function(c) { chunks.push(c); });
       res.on("end", function() {
-        var body = Buffer.concat(chunks).toString();
-        resolve({ status: res.statusCode, body: body });
+        resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() });
       });
     });
     req.on("error", reject);
-    req.write(data);
+    req.setTimeout(25000, function() { req.destroy(new Error("timeout")); });
+    req.write(payload);
     req.end();
   });
 }
 
 const handler = async (event, context) => {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  };
+  const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY nao configurada" }) };
+  const KEY = process.env.ANTHROPIC_API_KEY;
+  if (!KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: "API key nao configurada" }) };
 
   try {
     const body = JSON.parse(event.body);
@@ -45,7 +49,7 @@ const handler = async (event, context) => {
     const partidas = body.partidas || [];
     const clubes = body.clubes || {};
     const estrategia = body.estrategia || "misto";
-    if (!atletas.length) return { statusCode: 400, headers, body: JSON.stringify({ error: "Nenhum atleta fornecido" }) };
+    if (!atletas.length) return { statusCode: 400, headers, body: JSON.stringify({ error: "Sem atletas" }) };
 
     const vagasMap = {
       "4-3-3": { GOL:1, LAT:2, ZAG:2, MEI:3, ATA:3 },
@@ -54,133 +58,89 @@ const handler = async (event, context) => {
       "5-3-2": { GOL:1, LAT:3, ZAG:3, MEI:3, ATA:2 },
     };
     const vagas = vagasMap[esquema] || vagasMap["4-3-3"];
-    const vagasStr = Object.entries(vagas).filter(function(e){return e[1]>0;}).map(function(e){return e[1]+" "+e[0];}).join(", ");
-    const totalClubes = atletas.length > 0 && atletas[0].total_clubes ? atletas[0].total_clubes : 20;
+    const totalClubes = (atletas[0] && atletas[0].total_clubes) || 20;
 
-    const posTabela = {};
+    // Posicao na tabela
+    const posTab = {};
     Object.keys(clubes).forEach(function(id) {
-      if (clubes[id] && clubes[id].ranking && clubes[id].abrev) {
-        posTabela[clubes[id].abrev] = totalClubes - clubes[id].ranking + 1;
+      if (clubes[id] && clubes[id].abrev && clubes[id].ranking) {
+        posTab[clubes[id].abrev] = totalClubes - clubes[id].ranking + 1;
       }
     });
 
-    const partidasStr = partidas.map(function(p) {
-      var pm = posTabela[p.mandante_abrev] ? p.mandante_abrev+"("+posTabela[p.mandante_abrev]+")" : p.mandante_abrev;
-      var pv = posTabela[p.visitante_abrev] ? p.visitante_abrev+"("+posTabela[p.visitante_abrev]+")" : p.visitante_abrev;
-      return pm + " x " + pv;
-    }).join(", ");
-
-    // Calcular nota estrategica
-    var atletasComNota = atletas.map(function(a) {
+    // Calcular nota e selecionar TOP por posicao (MAX 6 por posicao)
+    const por_pos = {};
+    atletas.forEach(function(a) {
       var posC = a.total_clubes - a.ranking_clube + 1;
       var posA = a.total_clubes - a.forca_adversario + 1;
-      var diff = posA - posC;
-      var favorabilidade = (a.mando === "casa" ? 2 : 0) +
-        (diff >= 8 ? 3 : diff >= 4 ? 2 : diff >= 0 ? 1 : diff >= -4 ? -1 : diff >= -8 ? -2 : -3);
-      var regularidade = a.media > 0 ? Math.min(10, a.media * 0.8 + (a.variacao > 0 ? 1 : -0.5)) : 0;
-      var cb = a.preco > 0 ? a.media / a.preco : 0;
-      var risco = (a.mando === "fora" ? 1 : 0) + (posA <= 3 ? 2 : 0) + (a.dificuldade >= 4 ? 1 : 0);
-      var nota = (a.media * 0.35) + (regularidade * 0.15) + (favorabilidade * 0.15) + (cb * 10 * 0.10) - (risco * 0.5);
-      return Object.assign({}, a, { nota: parseFloat(nota.toFixed(3)), favorabilidade: favorabilidade, risco: risco, posC: posC, posA: posA });
+      var fav = (a.mando==="casa"?2:0) + (posA-posC >= 8?3: posA-posC >= 4?2: posA-posC >= 0?1: posA-posC >= -4?-1:-2);
+      var cb = a.preco > 0 ? a.media/a.preco : 0;
+      var risco = (a.mando==="fora"?1:0) + (posA<=3?2:0) + (a.dificuldade>=4?1:0);
+      var nota = a.media*0.35 + fav*0.2 + cb*8*0.15 - risco*0.5;
+      var obj = { id:a.id, n:a.nome, cl:a.clube_abrev, pc:posC, pa:posA, pr:a.preco, md:a.media, mn:a.mando, adv:a.adversario, nt:parseFloat(nota.toFixed(2)) };
+      if (!por_pos[a.posicao]) por_pos[a.posicao] = [];
+      por_pos[a.posicao].push(obj);
     });
 
-    var por_posicao = {};
-    atletasComNota.forEach(function(a) {
-      if (!por_posicao[a.posicao]) por_posicao[a.posicao] = [];
-      por_posicao[a.posicao].push(a);
+    // Ordenar e pegar top 6 por posicao
+    var selecao = {};
+    ["GOL","LAT","ZAG","MEI","ATA","TEC"].forEach(function(pos) {
+      selecao[pos] = (por_pos[pos]||[]).sort(function(a,b){return b.nt-a.nt;}).slice(0,6);
     });
 
-    var top = function(pos, n) {
-      return (por_posicao[pos] || [])
-        .sort(function(a,b){return (b.nota||0)-(a.nota||0);})
-        .slice(0, n)
-        .map(function(a){
-          return { id:a.id, nome:a.nome, clube:a.clube_abrev,
-            pos_clube:a.posC, pos_adv:a.posA,
-            preco:a.preco, media:a.media, var:a.variacao,
-            mando:a.mando, adv:a.adversario, dif:a.dificuldade,
-            fav:a.favorabilidade, risco:a.risco, nota:a.nota,
-            cb:parseFloat((a.preco>0?a.media/a.preco:0).toFixed(3)) };
-        });
-    };
+    var jogos = partidas.map(function(p){
+      return (posTab[p.mandante_abrev]?p.mandante_abrev+"("+posTab[p.mandante_abrev]+")":p.mandante_abrev)+" x "+(posTab[p.visitante_abrev]?p.visitante_abrev+"("+posTab[p.visitante_abrev]+")":p.visitante_abrev);
+    }).join(", ");
 
-    var modos = {
-      "pontuacao": "MODO PONTUACAO: maximize pontos. Priorize alto teto, aceite caros se candidatos a mitar.",
-      "valorizacao": "MODO VALORIZACAO: maximize valorizacao. Priorize custo-beneficio alto, evite caros.",
-      "misto": "MODO MISTO: equilibre pontuacao e valorizacao. Base segura + 2-3 de alto potencial."
-    };
+    var vagasStr = Object.entries(vagas).map(function(e){return e[1]+e[0];}).join("+");
+    var modoTxt = estrategia==="pontuacao"?"max pontos (aceite caros)":estrategia==="valorizacao"?"max valorizacao (prefira baratos)":"equilibrado";
 
+    // Prompt compacto
     var prompt =
-      "Especialista Cartola FC. Monte o melhor time Rodada " + rodada + ".\n\n" +
-      "ESQUEMA: " + esquema + " = " + vagasStr + " + 1 TEC = 12 atletas\n" +
-      "ORCAMENTO: C$ " + orcamento + "\n" +
-      "ESTRATEGIA: " + (modos[estrategia] || modos["misto"]) + "\n\n" +
-      "REGRAS:\n" +
-      "- Exatamente " + vagasStr + " + 1 TEC, sem reserva\n" +
-      "- IDs unicos, soma precos <= C$ " + orcamento + "\n" +
-      "- pos_clube=posicao na tabela (1=lider, alto=lanterna)\n" +
-      "- pos_adv=posicao adversario\n" +
-      "- nota=score estrategico (use como base)\n" +
-      "- fav>2: confronto otimo | fav<0: confronto ruim\n" +
-      "- EVITE time lanterna (pos_clube alto) vs time forte (pos_adv baixo)\n" +
-      "- Max 3 jogadores mesmo clube\n" +
-      "- Capitao: alto teto + confronto favoravel + provavel titular\n\n" +
-      "JOGOS: " + (partidasStr||"N/A") + "\n\n" +
-      "GOLEIROS:\n" + JSON.stringify(top("GOL",6)) + "\n\n" +
-      "LATERAIS:\n" + JSON.stringify(top("LAT",8)) + "\n\n" +
-      "ZAGUEIROS:\n" + JSON.stringify(top("ZAG",8)) + "\n\n" +
-      "MEIAS:\n" + JSON.stringify(top("MEI",10)) + "\n\n" +
-      "ATACANTES:\n" + JSON.stringify(top("ATA",8)) + "\n\n" +
-      "TECNICOS:\n" + JSON.stringify(top("TEC",5)) + "\n\n" +
-      "RESPONDA JSON PURO:\n" +
-      "{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"GOL\",\"clube\":\"\",\"preco\":0,\"media\":0,\"pontuacao_esperada\":0,\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":2,\"risco\":\"seguro\",\"titular\":true,\"capitao\":false,\"vice\":false,\"justificativa\":\"\"}],\"capitao\":{\"id\":0,\"nome\":\"\",\"motivo\":\"\",\"pts_capitao\":0},\"vice_capitao\":{\"id\":0,\"nome\":\"\"},\"custo_total\":0,\"pontuacao_esperada\":0,\"perfil\":\"equilibrada\",\"analise\":\"\",\"alertas\":[],\"oportunidades\":[]}";
+      "Cartola FC R"+rodada+". "+esquema+" ("+vagasStr+"+TEC=12). C$<="+orcamento+". Modo:"+modoTxt+"\n" +
+      "Jogos(pos=tabela,1=lider): "+jogos+"\n" +
+      "Regras: max 3/clube, sem repetir id, capitao=alto teto+fav(pa alto=adv fraco), evite pc alto vs pa baixo\n" +
+      "Campos: id,n=nome,cl=clube,pc=pos_clube,pa=pos_adv,pr=preco,md=media,mn=mando,adv=adversario,nt=nota\n\n" +
+      "GOL("+vagas.GOL+"):"+JSON.stringify(selecao.GOL)+"\n" +
+      "LAT("+vagas.LAT+"):"+JSON.stringify(selecao.LAT)+"\n" +
+      "ZAG("+vagas.ZAG+"):"+JSON.stringify(selecao.ZAG)+"\n" +
+      "MEI("+vagas.MEI+"):"+JSON.stringify(selecao.MEI)+"\n" +
+      "ATA("+vagas.ATA+"):"+JSON.stringify(selecao.ATA)+"\n" +
+      "TEC(1):"+JSON.stringify(selecao.TEC)+"\n\n" +
+      "JSON puro:{\"time\":[{\"id\":0,\"nome\":\"\",\"posicao\":\"\",\"clube\":\"\",\"preco\":0,\"media\":0,\"mando\":\"\",\"adversario\":\"\",\"dificuldade\":2,\"capitao\":false,\"vice\":false,\"justificativa\":\"\"}],\"capitao\":{\"id\":0,\"nome\":\"\",\"pts_capitao\":0},\"vice_capitao\":{\"id\":0,\"nome\":\"\"},\"custo_total\":0,\"pontuacao_esperada\":0,\"perfil\":\"\",\"analise\":\"\",\"alertas\":[],\"oportunidades\":[]}";
 
-    var res = await httpPost("api.anthropic.com", "/v1/messages", {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_KEY,
-      "anthropic-version": "2023-06-01",
-    }, {
-      model: "claude-sonnet-4-5",
-      max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    if (res.status !== 200) throw new Error("Claude API error: " + res.status + " " + res.body.slice(0,200));
+    var res = await callClaude(KEY, prompt);
+    if (res.status !== 200) throw new Error("Claude "+res.status+": "+res.body.slice(0,150));
 
     var data = JSON.parse(res.body);
-    var text = (data.content && data.content[0]) ? data.content[0].text : "";
-    var clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    var text = data.content && data.content[0] ? data.content[0].text : "";
+    var clean = text.replace(/```json/g,"").replace(/```/g,"").trim();
 
-    var escalacao;
-    try { escalacao = JSON.parse(clean); }
+    var esc;
+    try { esc = JSON.parse(clean); }
     catch(e) {
-      var match = clean.match(/\{[\s\S]*\}/);
-      if (match) { try { escalacao = JSON.parse(match[0]); } catch(e2) { throw new Error("JSON invalido"); } }
-      else throw new Error("Sem JSON: " + clean.slice(0,200));
+      var m = clean.match(/\{[\s\S]*\}/);
+      if (m) esc = JSON.parse(m[0]);
+      else throw new Error("JSON invalido: "+clean.slice(0,100));
     }
 
-    if (escalacao.time) {
+    if (esc.time) {
       var seen = new Set();
-      escalacao.time = escalacao.time.filter(function(t) {
-        if (seen.has(t.id)) return false;
-        seen.add(t.id);
-        return true;
-      }).map(function(t) {
-        var orig = atletas.find(function(a){ return a.id === t.id; });
-        return Object.assign({}, t, {
-          foto: orig ? orig.foto : null,
-          escudo: orig ? orig.escudo : null,
-          adversario_escudo: orig ? orig.adversario_escudo : null,
-          mando: orig ? orig.mando : (t.mando||"?"),
-          adversario: orig ? orig.adversario : (t.adversario||"?"),
-          dificuldade: orig ? orig.dificuldade : (t.dificuldade||3),
-          variacao: orig ? orig.variacao : 0,
-          jogos: orig ? orig.jogos : 0,
+      esc.time = esc.time.filter(function(t){ if(seen.has(t.id))return false; seen.add(t.id); return true; })
+        .map(function(t) {
+          var o = atletas.find(function(a){return a.id===t.id;});
+          return Object.assign({},t,{
+            foto: o?o.foto:null, escudo: o?o.escudo:null,
+            adversario_escudo: o?o.adversario_escudo:null,
+            mando: o?o.mando:(t.mando||"?"),
+            adversario: o?o.adversario:(t.adversario||"?"),
+            dificuldade: o?o.dificuldade:(t.dificuldade||3),
+            variacao: o?o.variacao:0, jogos: o?o.jogos:0,
+          });
         });
-      });
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, escalacao: escalacao }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, escalacao: esc }) };
   } catch(err) {
     return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
   }
