@@ -71,7 +71,7 @@ const handler = async (event, context) => {
       else if (diff <= -4) favorabilidade -= 2;
       else favorabilidade -= 1;
 
-      // Regularidade: media / max(variacao absoluta, 1) — proxy
+      // Regularidade: media / max(variacao absoluta, 1) - proxy
       var regularidade = a.media > 0 ? Math.min(10, a.media * 0.8 + (a.variacao > 0 ? 1 : -0.5)) : 0;
 
       // Teto: jogadores caros tendem a ter maior teto
