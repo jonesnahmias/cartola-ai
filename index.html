@@ -340,25 +340,18 @@ async function escalar(){
     }).join(", ");
 
     var modoTxt=strat==="pontuacao"?"max pontos":strat==="valorizacao"?"max valorizacao":"equilibrado";
-    var prompt="Cartola FC R"+S.rodada+". "+esq+"("+vagasStr+"+TEC=12). C$<="+o+". Modo:"+modoTxt+"
-"+
-      "Jogos(1=lider): "+jogos+"
-"+
-      "Regras: max 3/clube, sem id repetido, capitao=alto md+pa alto(adv fraco), evite pc alto vs pa baixo
-"+
-      "GOL("+vagas.GOL+"):"+JSON.stringify(por_pos.GOL||[])+"
-"+
-      "LAT("+vagas.LAT+"):"+JSON.stringify(por_pos.LAT||[])+"
-"+
-      "ZAG("+vagas.ZAG+"):"+JSON.stringify(por_pos.ZAG||[])+"
-"+
-      "MEI("+vagas.MEI+"):"+JSON.stringify(por_pos.MEI||[])+"
-"+
-      "ATA("+vagas.ATA+"):"+JSON.stringify(por_pos.ATA||[])+"
-"+
-      "TEC(1):"+JSON.stringify(por_pos.TEC||[])+"
-"+
-      "JSON puro:{"time":[{"id":0,"nome":"","posicao":"","clube":"","preco":0,"media":0,"mando":"","adversario":"","dificuldade":2,"capitao":false,"vice":false,"justificativa":""}],"capitao":{"id":0,"nome":"","pts_capitao":0},"vice_capitao":{"id":0,"nome":""},"custo_total":0,"pontuacao_esperada":0,"perfil":"","analise":"","alertas":[],"oportunidades":[]}";
+    var prompt=[
+      "Cartola FC R"+S.rodada+". "+esq+"("+vagasStr+"+TEC=12). C$<="+o+". Modo:"+modoTxt,
+      "Jogos(1=lider): "+jogos,
+      "Regras: max 3/clube, sem id repetido, capitao=alto md+pa alto, evite pc alto vs pa baixo",
+      "GOL("+vagas.GOL+"):"+JSON.stringify(por_pos.GOL||[]),
+      "LAT("+vagas.LAT+"):"+JSON.stringify(por_pos.LAT||[]),
+      "ZAG("+vagas.ZAG+"):"+JSON.stringify(por_pos.ZAG||[]),
+      "MEI("+vagas.MEI+"):"+JSON.stringify(por_pos.MEI||[]),
+      "ATA("+vagas.ATA+"):"+JSON.stringify(por_pos.ATA||[]),
+      "TEC(1):"+JSON.stringify(por_pos.TEC||[]),
+      "JSON:{time:[{id,nome,posicao,clube,preco,media,mando,adversario,dificuldade,capitao:bool,vice:bool,justificativa}],capitao:{id,nome,pts_capitao},vice_capitao:{id,nome},custo_total,pontuacao_esperada,perfil,analise,alertas:[],oportunidades:[]}"
+    ].join("\n");
 
     // Chamar Claude direto do browser (sem funcao serverless)
     var apiKey=document.getElementById('apiKey').value.trim();
