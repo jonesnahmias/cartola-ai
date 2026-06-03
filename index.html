@@ -167,6 +167,14 @@
       <div class="cg"><label>Orçamento (C$)</label><input type="number" id="orc" value="140" min="60" max="200" step="0.5" oninput="document.getElementById('od').textContent='C$ '+parseFloat(this.value).toFixed(1)"/></div>
       <div class="cg"><label>C$ disponível</label><div class="od" id="od">C$ 140</div></div>
       <div class="cg"><label>Esquema tático</label><select id="esq"><option value="4-3-3">4-3-3</option><option value="4-4-2">4-4-2</option><option value="3-5-2">3-5-2</option><option value="5-3-2">5-3-2</option></select></div>
+      <div class="cg">
+        <label>Estratégia</label>
+        <select id="strat">
+          <option value="misto">⚖️ Misto</option>
+          <option value="pontuacao">🏆 Pontuação</option>
+          <option value="valorizacao">📈 Valorização</option>
+        </select>
+      </div>
       <button class="bp" onclick="escalar()">⚡ Escalar com IA</button>
       <button class="bs" onclick="loadAtletas()">🔄 Atualizar mercado</button>
     </div>
@@ -289,7 +297,7 @@ async function escalar(){
   try{
     var r=await fetch('/api/escalar',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({atletas:S.atletas,orcamento:o,esquema:e,rodada:S.rodada,partidas:S.partidas,clubes:S.clubes})
+      body:JSON.stringify({atletas:S.atletas,orcamento:o,esquema:e,rodada:S.rodada,partidas:S.partidas,clubes:S.clubes,estrategia:document.getElementById('strat').value})
     });
     var d=await r.json();
     if(!d.ok)throw new Error(d.error||'Erro ao escalar');
@@ -366,13 +374,27 @@ function renderResumo(esc){
   var saldo=(parseFloat(orc)-parseFloat(custo)).toFixed(1);
   var cap=esc.capitao?esc.capitao.nome:'—';
   var vic=esc.vice_capitao?esc.vice_capitao.nome:'—';
+  var perfil=esc.perfil||'equilibrada';
+  var perfilCor=perfil==='segura'?'var(--v)':perfil==='agressiva'?'var(--red)':'var(--amb)';
+  var capPts=esc.capitao&&esc.capitao.pts_capitao?parseFloat(esc.capitao.pts_capitao).toFixed(1):'—';
   document.getElementById('res').innerHTML=
     '<div class="sr"><span class="sl">💰 Custo</span><span class="sv g">C$ '+custo+'</span></div>'+
     '<div class="sr"><span class="sl">💵 Saldo</span><span class="sv '+(parseFloat(saldo)>=0?'v':'')+'" '+(parseFloat(saldo)<0?'style="color:var(--red)"':'')+'>C$ '+saldo+'</span></div>'+
     '<div class="sr"><span class="sl">📈 Pts esperados</span><span class="sv v">'+pts+'</span></div>'+
-    '<div class="sr"><span class="sl">👑 Capitão</span><span class="sv g">'+cap+'</span></div>'+
-    '<div class="sr"><span class="sl">🥈 Vice</span><span class="sv">'+vic+'</span></div>';
+    '<div class="sr"><span class="sl">👑 Capitão (x1.5)</span><span class="sv g">'+cap+' ~'+capPts+'pts</span></div>'+
+    '<div class="sr"><span class="sl">🥈 Vice</span><span class="sv">'+vic+'</span></div>'+
+    '<div class="sr"><span class="sl">📊 Perfil</span><span class="sv" style="color:'+perfilCor+'">'+perfil+'</span></div>';
   if(esc.analise){document.getElementById('acard').style.display='block';document.getElementById('atx').textContent=esc.analise;}
+  if(esc.oportunidades&&esc.oportunidades.length){
+    var ocard=document.getElementById('opcard');
+    if(!ocard){
+      var rc=document.createElement('div');rc.className='rc';rc.id='opcard';
+      rc.innerHTML='<h3>✨ Oportunidades</h3><div id="opcnt"></div>';
+      document.getElementById('acard').parentNode.insertBefore(rc,document.getElementById('alcard'));
+    }
+    document.getElementById('opcard').style.display='block';
+    document.getElementById('opcnt').innerHTML=esc.oportunidades.map(function(o){return '<div class="ali"><div class="ad" style="background:var(--v)"></div><span>'+o+'</span></div>';}).join('');
+  }
   if(esc.alertas&&esc.alertas.length){
     document.getElementById('alcard').style.display='block';
     document.getElementById('alcnt').innerHTML=esc.alertas.map(function(a){return '<div class="ali"><div class="ad"></div><span>'+a+'</span></div>';}).join('');
@@ -395,6 +417,7 @@ function renderGrid(esc){
         '<div class="atags">'+
           '<span class="pb '+a.posicao+'">'+a.posicao+'</span>'+
           '<span style="font-size:11px;color:var(--tx2)">'+a.clube+'</span>'+
+          (a.pontuacao_esperada?'<span style="font-size:11px;color:var(--v)">~'+parseFloat(a.pontuacao_esperada).toFixed(1)+'pts</span>':'')+
           '<span style="font-size:11px;color:var(--gold)">C$ '+parseFloat(a.preco||0).toFixed(1)+'</span>'+
         '</div>'+
         '<div class="acnf">'+
