@@ -175,10 +175,6 @@
           <option value="valorizacao">📈 Valorização</option>
         </select>
       </div>
-      <div class="cg" id="keyGroup">
-        <label>API Key Anthropic</label>
-        <input type="password" id="apiKey" placeholder="sk-ant-..." style="min-width:180px" oninput="localStorage.setItem('ant_key',this.value)"/>
-      </div>
       <button class="bp" onclick="escalar()">⚡ Escalar com IA</button>
       <button class="bs" onclick="loadAtletas()">🔄 Atualizar mercado</button>
     </div>
@@ -241,11 +237,7 @@
 </main>
 <script>
 var S={atletas:[],clubes:{},partidas:[],rodada:null,esc:null,fp:'TODOS',bq:'',sc:'score_final',sd:-1};
-window.addEventListener('DOMContentLoaded',function(){
-  var k=localStorage.getItem('ant_key');
-  if(k)document.getElementById('apiKey').value=k;
-  loadAtletas();
-});
+window.addEventListener('DOMContentLoaded',loadAtletas);
 
 function tab(t,b){
   document.querySelectorAll('.tv').forEach(function(v){v.classList.remove('active');});
@@ -307,84 +299,21 @@ async function escalar(){
   var strat=document.getElementById('strat').value;
   load(true,'ESCALANDO O TIME...','IA analisando confrontos e forma...');
   try{
-    var totalClubes=S.atletas.length>0&&S.atletas[0].total_clubes?S.atletas[0].total_clubes:20;
-    var posTab={};
-    Object.keys(S.clubes).forEach(function(id){
-      if(S.clubes[id]&&S.clubes[id].abrev&&S.clubes[id].ranking){
-        posTab[S.clubes[id].abrev]=totalClubes-S.clubes[id].ranking+1;
-      }
+    var r=await fetch('/api/escalar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({atletas:S.atletas,orcamento:o,esquema:esq,rodada:S.rodada,partidas:S.partidas,clubes:S.clubes,estrategia:strat})
     });
-
-    var vagasMap={"4-3-3":{GOL:1,LAT:2,ZAG:2,MEI:3,ATA:3},"4-4-2":{GOL:1,LAT:2,ZAG:2,MEI:4,ATA:2},"3-5-2":{GOL:1,LAT:1,ZAG:3,MEI:5,ATA:2},"5-3-2":{GOL:1,LAT:3,ZAG:3,MEI:3,ATA:2}};
-    var vagas=vagasMap[esq]||vagasMap["4-3-3"];
-    var vagasStr=Object.entries(vagas).map(function(e){return e[1]+e[0];}).join("+");
-
-    // Calcular nota e selecionar top 6 por posicao
-    var por_pos={};
-    S.atletas.forEach(function(a){
-      var posC=a.total_clubes-a.ranking_clube+1;
-      var posA=a.total_clubes-a.forca_adversario+1;
-      var fav=(a.mando==="casa"?2:0)+(posA-posC>=8?3:posA-posC>=4?2:posA-posC>=0?1:posA-posC>=-4?-1:-2);
-      var cb=a.preco>0?a.media/a.preco:0;
-      var risco=(a.mando==="fora"?1:0)+(posA<=3?2:0)+(a.dificuldade>=4?1:0);
-      var nota=a.media*0.35+fav*0.2+cb*8*0.15-risco*0.5;
-      if(!por_pos[a.posicao])por_pos[a.posicao]=[];
-      por_pos[a.posicao].push({id:a.id,n:a.nome,cl:a.clube_abrev,pc:posC,pa:posA,pr:a.preco,md:a.media,mn:a.mando,adv:a.adversario,nt:parseFloat(nota.toFixed(2))});
-    });
-    ["GOL","LAT","ZAG","MEI","ATA","TEC"].forEach(function(p){
-      if(por_pos[p])por_pos[p].sort(function(a,b){return b.nt-a.nt;}).splice(6);
-    });
-
-    var jogos=S.partidas.map(function(p){
-      return (posTab[p.mandante_abrev]?p.mandante_abrev+"("+posTab[p.mandante_abrev]+")":p.mandante_abrev)+" x "+(posTab[p.visitante_abrev]?p.visitante_abrev+"("+posTab[p.visitante_abrev]+")":p.visitante_abrev);
-    }).join(", ");
-
-    var modoTxt=strat==="pontuacao"?"max pontos":strat==="valorizacao"?"max valorizacao":"equilibrado";
-    var prompt=[
-      "Cartola FC R"+S.rodada+". "+esq+"("+vagasStr+"+TEC=12). C$<="+o+". Modo:"+modoTxt,
-      "Jogos(1=lider): "+jogos,
-      "Regras: max 3/clube, sem id repetido, capitao=alto md+pa alto, evite pc alto vs pa baixo",
-      "GOL("+vagas.GOL+"):"+JSON.stringify(por_pos.GOL||[]),
-      "LAT("+vagas.LAT+"):"+JSON.stringify(por_pos.LAT||[]),
-      "ZAG("+vagas.ZAG+"):"+JSON.stringify(por_pos.ZAG||[]),
-      "MEI("+vagas.MEI+"):"+JSON.stringify(por_pos.MEI||[]),
-      "ATA("+vagas.ATA+"):"+JSON.stringify(por_pos.ATA||[]),
-      "TEC(1):"+JSON.stringify(por_pos.TEC||[]),
-      "JSON:{time:[{id,nome,posicao,clube,preco,media,mando,adversario,dificuldade,capitao:bool,vice:bool,justificativa}],capitao:{id,nome,pts_capitao},vice_capitao:{id,nome},custo_total,pontuacao_esperada,perfil,analise,alertas:[],oportunidades:[]}"
-    ].join("\n");
-
-    // Chamar Claude direto do browser (sem funcao serverless)
-    var apiKey=document.getElementById('apiKey').value.trim();
-    if(!apiKey)throw new Error("Insira sua API Key Anthropic no campo acima");
-    var r=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","x-api-key":apiKey,"anthropic-dangerous-allow-cors":"true"},
-      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2048,messages:[{role:"user",content:prompt}]})
-    });
-    var rdata=await r.json();
-    if(!r.ok)throw new Error("Claude "+(rdata.error&&rdata.error.message?rdata.error.message:r.status));
-    var text=rdata.content&&rdata.content[0]?rdata.content[0].text:"";
-    var clean=text.replace(/```json/g,"").replace(/```/g,"").trim();
-    var esc;
-    try{esc=JSON.parse(clean);}catch(pe){var m=clean.match(/\{[\s\S]*\}/);if(m)esc=JSON.parse(m[0]);else throw new Error("JSON invalido");}
-
-    if(esc.time){
-      var seen=new Set();
-      esc.time=esc.time.filter(function(t){if(seen.has(t.id))return false;seen.add(t.id);return true;})
-        .map(function(t){
-          var orig=S.atletas.find(function(a){return a.id===t.id;});
-          return Object.assign({},t,{foto:orig?orig.foto:null,escudo:orig?orig.escudo:null,adversario_escudo:orig?orig.adversario_escudo:null,mando:orig?orig.mando:(t.mando||"?"),adversario:orig?orig.adversario:(t.adversario||"?"),dificuldade:orig?orig.dificuldade:(t.dificuldade||3),variacao:orig?orig.variacao:0,jogos:orig?orig.jogos:0});
-        });
-    }
-    S.esc=esc;
-    renderCampo(esc);
-    renderResumo(esc);
-    renderGrid(esc);
+    var txt=await r.text();
+    if(!r.ok) throw new Error('HTTP '+r.status+': '+txt.slice(0,200));
+    var d=JSON.parse(txt);
+    if(!d.ok) throw new Error(d.error||'Erro ao escalar');
+    S.esc=d.escalacao;
+    renderCampo(d.escalacao);
+    renderResumo(d.escalacao);
+    renderGrid(d.escalacao);
     toast('Time escalado!','ok');
-  }catch(e){
-    toast(e.message,'err');
-    console.error('Escalar error:',e);
-  }
+  }catch(e){toast(e.message,'err');}
   finally{load(false);}
 }
 
