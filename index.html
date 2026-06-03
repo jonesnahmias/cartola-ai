@@ -275,7 +275,10 @@ async function loadAtletas(){
     renderJogos(S.partidas);
     renderTabela();
     toast('Rodada '+d.rodada+' — '+d.total_atletas+' atletas','ok');
-  }catch(e){toast(e.message,'err');}
+  }catch(e){
+    toast(e.message,'err');
+    console.error('Escalar error:', e);
+  }
   finally{load(false);}
 }
 
@@ -299,14 +302,21 @@ async function escalar(){
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({atletas:S.atletas,orcamento:o,esquema:e,rodada:S.rodada,partidas:S.partidas,clubes:S.clubes,estrategia:document.getElementById('strat').value})
     });
-    var d=await r.json();
+    var rawText=await r.text();
+    console.log('Escalar status:',r.status,'body:',rawText.slice(0,500));
+    if(!r.ok){throw new Error('HTTP '+r.status+': '+rawText.slice(0,200));}
+    var d;
+    try{d=JSON.parse(rawText);}catch(pe){throw new Error('Parse error: '+rawText.slice(0,300));}
     if(!d.ok)throw new Error(d.error||'Erro ao escalar');
     S.esc=d.escalacao;
     renderCampo(d.escalacao);
     renderResumo(d.escalacao);
     renderGrid(d.escalacao);
     toast('Time escalado!','ok');
-  }catch(e){toast(e.message,'err');}
+  }catch(e){
+    toast(e.message,'err');
+    console.error('Escalar error:', e);
+  }
   finally{load(false);}
 }
 
